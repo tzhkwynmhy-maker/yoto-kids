@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="My Yoto">
+<meta name="theme-color" content="#fff4e0">
+<title>My Yoto</title>
+<style>
+  :root {
+    --bg: #fff4e0;
+    --ink: #2b2340;
+    --soft: #6d6486;
+    --accent: #ff6f59;
+    --accent-dark: #e4553f;
+    --card: #ffffff;
+    --pill: #ffe3c2;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-rounded, "Avenir Next Rounded", "Nunito", system-ui, -apple-system, sans-serif;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  img { -webkit-user-drag: none; pointer-events: none; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  svg { width: 100%; height: 100%; fill: currentColor; display: block; }
+
+  /* ---------- Sign-in ---------- */
+  #login {
+    min-height: 100%; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 32px 24px; gap: 18px;
+  }
+  #login h1 { font-size: 2.2rem; margin: 0; }
+  #login p { max-width: 36rem; color: var(--soft); margin: 0; line-height: 1.5; }
+  #login code {
+    display: inline-block; background: #fff; padding: 4px 8px; border-radius: 8px;
+    font-size: .85rem; word-break: break-all; -webkit-user-select: text; user-select: text; color: var(--ink);
+  }
+  .primary {
+    background: var(--accent); color: #fff; font-size: 1.3rem; font-weight: 700;
+    padding: 16px 34px; border-radius: 999px; box-shadow: 0 6px 0 var(--accent-dark);
+  }
+  .primary:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--accent-dark); }
+  .err { color: #b3261e; font-weight: 600; }
+
+  /* ---------- Library ---------- */
+  #library { padding: max(env(safe-area-inset-top), 16px) 20px 140px; }
+  #library header { padding: 6px 4px 14px; }
+  #title { margin: 0; font-size: 2.4rem; letter-spacing: .5px; display: inline-block; }
+  #grid {
+    display: grid; gap: 22px 18px;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  }
+  .tile {
+    background: var(--card); border-radius: 24px; padding: 10px 10px 14px;
+    box-shadow: 0 6px 16px rgba(60, 40, 90, .12); text-align: center;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .tile:active { transform: scale(.96); }
+  .art {
+    width: 100%; aspect-ratio: 1; border-radius: 16px; overflow: hidden; background: var(--pill);
+  }
+  .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ph {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    font-size: 4rem; font-weight: 800; color: rgba(43, 35, 64, .55);
+  }
+  .name {
+    font-size: 1.05rem; font-weight: 700; line-height: 1.25;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 2.5em;
+  }
+  #msg { padding: 10px 6px; }
+
+  /* ---------- Mini bar ---------- */
+  #mini {
+    position: fixed; left: 12px; right: 12px; bottom: max(env(safe-area-inset-bottom), 12px);
+    background: #fff; border-radius: 28px; padding: 10px 14px 10px 10px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 8px 24px rgba(60, 40, 90, .25); z-index: 5;
+  }
+  #miniArt { width: 64px; height: 64px; border-radius: 14px; overflow: hidden; flex: none; }
+  #miniName { flex: 1; font-size: 1.15rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .round {
+    width: 72px; height: 72px; border-radius: 50%; background: var(--pill); color: var(--ink);
+    padding: 20px; flex: none;
+  }
+  .round:active { transform: scale(.92); }
+  .round.big { width: 112px; height: 112px; padding: 30px; background: var(--accent); color: #fff; box-shadow: 0 6px 0 var(--accent-dark); }
+
+  /* ---------- Player ---------- */
+  #player {
+    position: fixed; inset: 0; background: var(--bg); z-index: 10;
+    display: flex; flex-direction: column; align-items: center;
+    padding: max(env(safe-area-inset-top), 14px) 20px max(env(safe-area-inset-bottom), 14px);
+    overflow: hidden;
+  }
+  #backBtn { align-self: flex-start; padding: 18px 20px 18px 16px; }
+  .pbody { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 640px; }
+  .pcover {
+    width: min(38vh, 70vw); height: min(38vh, 70vw); border-radius: 28px; overflow: hidden;
+    box-shadow: 0 10px 28px rgba(60, 40, 90, .25); background: var(--pill);
+  }
+  .pcover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #ptitle { margin: 6px 0 0; font-size: 1.7rem; text-align: center; line-height: 1.2; }
+  #ptrack { margin: 0; color: var(--soft); font-size: 1.15rem; text-align: center; min-height: 1.4em; }
+  .bar { width: 100%; height: 12px; border-radius: 6px; background: #ffd9a8; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 6px; }
+  .controls { display: flex; align-items: center; justify-content: center; gap: 30px; padding: 6px 0; }
+  #pmsg { color: #b3261e; font-weight: 700; text-align: center; margin: 0; min-height: 1.2em; }
+  #tracks {
+    list-style: none; margin: 8px 0 0; padding: 0; width: 100%; max-width: 640px;
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  #tracks li button {
+    width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+    background: var(--card); border-radius: 18px; padding: 12px 16px; margin-bottom: 10px;
+    font-size: 1.1rem; font-weight: 600; box-shadow: 0 3px 8px rgba(60, 40, 90, .08);
+  }
+  #tracks li button.now { background: var(--accent); color: #fff; }
+  #tracks .num {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--pill); color: var(--ink);
+    display: flex; align-items: center; justify-content: center; flex: none; font-size: .95rem;
+  }
+  #tracks li button.now .num { background: #fff; color: var(--accent-dark); }
+  #tracks .tt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- Grown-ups corner ---------- */
+  #grownups {
+    position: fixed; inset: 0; background: rgba(30, 20, 50, .55); z-index: 20;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  #grownups .box {
+    background: #fff; border-radius: 24px; padding: 24px; width: 100%; max-width: 520px;
+    max-height: 90vh; overflow: auto; display: flex; flex-direction: column; gap: 14px;
+  }
+  #grownups h2 { margin: 0; }
+  #grownups .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  #grownups .btn { background: var(--pill); padding: 14px 20px; border-radius: 14px; font-weight: 700; }
+  #grownups .btn.danger { background: #ffd6d2; }
+  #grownups pre {
+    background: #f4f0fa; padding: 10px; border-radius: 10px; font-size: .72rem; overflow: auto;
+    max-height: 40vh; -webkit-user-select: text; user-select: text; white-space: pre-wrap; word-break: break-all;
+  }
+</style>
+</head>
+<body>
+
+<section id="login" hidden>
+  <h1>Grown-up sign-in</h1>
+  <p>Sign in with your Yoto account once. After that, this page just shows the playlists and plays them.</p>
+  <button id="loginBtn" class="primary">Sign in with Yoto</button>
+  <p id="loginErr" class="err" hidden></p>
+  <p>Set-up note: this page's address is <code id="redirectShow"></code><br>
+     It must be listed under "Allowed Callback URLs" in your Yoto developer app.</p>
+</section>
+
+<section id="library" hidden>
+  <header><h1 id="title">My Yoto</h1></header>
+  <div id="msg" hidden></div>
+  <main id="grid"></main>
+</section>
+
+<div id="mini" hidden>
+  <div id="miniArt"></div>
+  <span id="miniName"></span>
+  <button id="miniPlay" class="round" aria-label="Play or pause"></button>
+</div>
+
+<div id="player" hidden>
+  <button id="backBtn" class="round" aria-label="Back"></button>
+  <div class="pbody">
+    <div id="pcover" class="pcover"></div>
+    <h2 id="ptitle"></h2>
+    <p id="ptrack"></p>
+    <div class="bar"><i id="pbar"></i></div>
+    <div class="controls">
+      <button id="prevBtn" class="round" aria-label="Previous"></button>
+      <button id="playBtn" class="round big" aria-label="Play or pause"></button>
+      <button id="nextBtn" class="round" aria-label="Next"></button>
+    </div>
+    <p id="pmsg"></p>
+  </div>
+  <ol id="tracks"></ol>
+</div>
+
+<div id="grownups" hidden>
+  <div class="box">
+    <h2>Grown-ups corner</h2>
+    <div class="row">
+      <button class="btn" id="gReload">Reload playlists</button>
+      <button class="btn danger" id="gSignOut">Sign out</button>
+      <button class="btn" id="gClose">Close</button>
+    </div>
+    <details>
+      <summary>Technical info (for troubleshooting)</summary>
+      <pre id="dbg"></pre>
+    </details>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const CONFIG = {
+  clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
+  authorizeUrl: 'https://login.yotoplay.com/authorize',
+  tokenUrl: 'https://login.yotoplay.com/oauth/token',
+  apiBase: 'https://api.yotoplay.com',
+  audience: 'https://api.yotoplay.com',
+  // View-only permissions. Nothing here can edit or delete anything.
+  scope: 'user:content:view family:library:view offline_access',
+  redirectUri: location.origin + location.pathname
+};
+
+const ICONS = {
+  play:  '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
+  prev:  '<svg viewBox="0 0 24 24"><path d="M6 6h2.2v12H6zM19 6v12L9.5 12z"/></svg>',
+  next:  '<svg viewBox="0 0 24 24"><path d="M15.8 6H18v12h-2.2zM5 6l9.5 6L5 18z"/></svg>',
+  back:  '<svg viewBox="0 0 24 24"><path d="M15.5 4.5 8 12l7.5 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+
+const $ = (id) => document.getElementById(id);
+const state = { cards: [], raw: null, now: null, debug: null };
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v; else e.setAttribute(k, v);
+  }
+  for (const k of kids) e.append(k);
+  return e;
+}
+
+/* ---------- storage ---------- */
+function store(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+function fetchStored(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function unstore(key) { try { localStorage.removeItem(key); } catch (e) {} }
+
+/* ---------- PKCE helpers ---------- */
+// <pkce>
+function b64url(buf) {
+  let s = '';
+  const bytes = new Uint8Array(buf);
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function randomString(n) {
+  const a = new Uint8Array(n);
+  crypto.getRandomValues(a);
+  return b64url(a).slice(0, n);
+}
+async function challengeFor(verifier) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return b64url(digest);
+}
+// </pkce>
+
+/* ---------- sign-in ---------- */
+async function startLogin() {
+  const verifier = randomString(64);
+  const st = randomString(24);
+  store('yk_verifier', verifier);
+  store('yk_state', st);
+  const params = new URLSearchParams({
+    audience: CONFIG.audience,
+    scope: CONFIG.scope,
+    response_type: 'code',
+    client_id: CONFIG.clientId,
+    code_challenge: await challengeFor(verifier),
+    code_challenge_method: 'S256',
+    redirect_uri: CONFIG.redirectUri,
+    state: st
+  });
+  location.href = CONFIG.authorizeUrl + '?' + params.toString();
+}
+
+async function handleCallback() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('code') && !q.has('error')) return;
+  const code = q.get('code');
+  const returnedState = q.get('state');
+  const errorText = q.get('error_description') || q.get('error');
+  history.replaceState({}, '', CONFIG.redirectUri);
+  if (errorText) throw new Error('Yoto said: ' + errorText);
+  const verifier = fetchStored('yk_verifier');
+  const expected = fetchStored('yk_state');
+  unstore('yk_verifier'); unstore('yk_state');
+  if (!verifier || returnedState !== expected) throw new Error('Sign-in was interrupted. Please try again.');
+  const res = await fetch(CONFIG.tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: CONFIG.clientId,
+      code_verifier: verifier,
+      code: code,
+      redirect_uri: CONFIG.redirectUri
+    })
+  });
+  if (!res.ok) throw new Error('Sign-in failed (code ' + res.status + ').');
+  saveTokens(await res.json(), null);
+}
+
+/* ---------- tokens ---------- */
+function getTokens() {
+  try { return JSON.parse(fetchStored('yk_tokens') || 'null'); } catch (e) { return null; }
+}
+function saveTokens(t, prev) {
+  store('yk_tokens', JSON.stringify({
+    access_token: t.access_token,
+    refresh_token: t.refresh_token || (prev && prev.refresh_token) || null,
+    exp: Date.now() + (t.expires_in || 600) * 1000
+  }));
+}
+let refreshing = null;
+async function refreshTokens() {
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    const t = getTokens();
+    if (!t || !t.refresh_token) throw new Error('signin');
+    const res = await fetch(CONFIG.tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: CONFIG.clientId,
+        refresh_token: t.refresh_token
+      })
+    });
+    if (!res.ok) {
+      if ([400, 401, 403].includes(res.status)) { unstore('yk_tokens'); throw new Error('signin'); }
+      throw new Error('Could not reach Yoto (' + res.status + ').');
+    }
+    saveTokens(await res.json(), t);
+    return getTokens();
+  })();
+  try { return await refreshing; } finally { refreshing = null; }
+}
+async function api(path) {
+  let t = getTokens();
+  if (!t) throw new Error('signin');
+  if (Date.now() > t.exp - 60000) t = await refreshTokens();
+  let res = await fetch(CONFIG.apiBase + path, { headers: { Authorization: 'Bearer ' + t.access_token } });
+  if (res.status === 401) {
+    t = await refreshTokens();
+    res = await fetch(CONFIG.apiBase + path, { headers: { Authorization: 'Bearer ' + t.access_token } });
+  }
+  if (!res.ok) throw new Error('Yoto replied with code ' + res.status + '.');
+  return res.json();
+}
+
+/* ---------- screens ---------- */
+function showLogin(message) {
+  $('library').hidden = true; $('mini').hidden = true; $('player').hidden = true;
+  $('login').hidden = false;
+  $('redirectShow').textContent = CONFIG.redirectUri;
+  const e = $('loginErr');
+  e.hidden = !message; e.textContent = message || '';
+}
+function showLibrary() {
+  $('login').hidden = true; $('library').hidden = false;
+}
+function setLibraryMessage(text) {
+  const m = $('msg');
+  m.hidden = !text; m.textContent = text || '';
+}
+
+function placeholder(title) {
+  const first = Array.from((title || '').trim())[0] || '\u266A';
+  let sum = 0; for (const ch of title || '') sum += ch.charCodeAt(0);
+  const d = el('div', { class: 'ph' }, first.toUpperCase());
+  d.style.background = 'hsl(' + ((sum * 37) % 360) + ' 70% 82%)';
+  return d;
+}
+function artFor(card, into) {
+  into.replaceChildren();
+  if (card.cover) {
+    const img = el('img', { src: card.cover, alt: '', loading: 'lazy', draggable: 'false' });
+    img.onerror = () => { into.replaceChildren(placeholder(card.title)); };
+    into.append(img);
+  } else {
+    into.append(placeholder(card.title));
+  }
+}
+
+async function loadLibrary() {
+  setLibraryMessage('Loading playlists\u2026');
+  const data = await api('/content/mine');
+  state.raw = data;
+  state.cards = (data.cards || [])
+    .filter((c) => !c.deleted)
+    .map((c) => ({
+      id: c.cardId,
+      title: c.title || (c.metadata && c.metadata.title) || 'Untitled',
+      cover: (c.metadata && c.metadata.cover && c.metadata.cover.imageL) || null
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  setLibraryMessage(state.cards.length ? '' : 'No playlists found.');
+  renderLibrary();
+  showLibrary();
+}
+
+function renderLibrary() {
+  const grid = $('grid');
+  grid.replaceChildren();
+  for (const c of state.cards) {
+    const art = el('div', { class: 'art' });
+    artFor(c, art);
+    const b = el('button', { class: 'tile' }, art, el('span', { class: 'name' }, c.title));
+    b.addEventListener('click', () => openPlaylist(c));
+    grid.append(b);
+  }
+}
+
+/* ---------- audio ---------- */
+const audio = new Audio();
+audio.preload = 'auto';
+const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+function unlockAudio() {
+  // iPads only allow sound that starts from a tap, so we "warm up" the player on the tap.
+  audio.src = SILENCE;
+  audio.play().catch(() => {});
+}
+
+function pickUrl(o) {
+  if (!o) return null;
+  const http = /^https?:\/\//;
+  for (const k of ['signedUrl', 'playableUrl', 'audioUrl', 'url', 'trackUrl']) {
+    if (typeof o[k] === 'string' && http.test(o[k])) return o[k];
+  }
+  for (const [k, v] of Object.entries(o)) {
+    if (typeof v === 'string' && http.test(v) && !/icon/i.test(k)) return v;
+  }
+  return null;
+}
+
+async function fetchTracks(id) {
+  const data = await api('/content/' + encodeURIComponent(id) +
+    '?playable=true&signingType=s3&timezone=' + encodeURIComponent('Pacific/Auckland'));
+  const chapters = (data && data.card && data.card.content && data.card.content.chapters) || [];
+  const out = [];
+  for (const ch of chapters) {
+    for (const t of (ch.tracks || [])) {
+      out.push({ title: t.title || ch.title || 'Track', url: pickUrl(t) || pickUrl(ch) });
+    }
+  }
+  state.debug = {
+    chapterCount: chapters.length,
+    firstChapterKeys: chapters[0] ? Object.keys(chapters[0]) : null,
+    firstTrack: chapters[0] && chapters[0].tracks ? chapters[0].tracks[0] : null,
+    tracksWithPlayableLink: out.filter((t) => t.url).length,
+    tracksTotal: out.length
+  };
+  if (out.length && !out.some((t) => t.url)) throw new Error('nourl');
+  return out;
+}
+
+async function openPlaylist(card) {
+  if (state.now && state.now.card.id === card.id) { showPlayer(); return; }
+  unlockAudio();
+  state.now = null;
+  renderPlayer(card, null);
+  showPlayer();
+  try {
+    const tracks = await fetchTracks(card.id);
+    if (!tracks.length) throw new Error('empty');
+    state.now = { card, tracks, index: 0, done: false, failedIndex: null, retrying: false };
+    renderPlayer(card, state.now);
+    playIndex(0);
+  } catch (e) {
+    if (e.message === 'signin') { hidePlayer(); showLogin('Please sign in again.'); return; }
+    $('pmsg').textContent = e.message === 'empty'
+      ? 'This one is empty.'
+      : 'Hmm, this one will not play. Please ask a grown-up.';
+  }
+}
+
+function playIndex(i) {
+  const n = state.now;
+  if (!n || i < 0 || i >= n.tracks.length) return;
+  n.index = i; n.done = false;
+  const t = n.tracks[i];
+  if (!t.url) { if (i + 1 < n.tracks.length) playIndex(i + 1); return; }
+  audio.src = t.url;
+  audio.play().catch(() => {});
+  updateUI();
+  setMediaSession();
+}
+
+function togglePlay() {
+  const n = state.now;
+  if (!n) return;
+  if (n.done) { playIndex(0); return; }
+  if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+}
+function goNext() { const n = state.now; if (n && n.index + 1 < n.tracks.length) playIndex(n.index + 1); }
+function goPrev() {
+  const n = state.now; if (!n) return;
+  if (audio.currentTime > 3 || n.index === 0) { audio.currentTime = 0; audio.play().catch(() => {}); }
+  else playIndex(n.index - 1);
+}
+
+audio.addEventListener('play', updateUI);
+audio.addEventListener('pause', updateUI);
+audio.addEventListener('playing', () => { if (state.now) state.now.failedIndex = null; $('pmsg').textContent = ''; updateUI(); });
+audio.addEventListener('timeupdate', () => {
+  const d = audio.duration;
+  $('pbar').style.width = (d && isFinite(d) ? Math.min(100, (audio.currentTime / d) * 100) : 0) + '%';
+});
+audio.addEventListener('ended', () => {
+  const n = state.now; if (!n) return;
+  if (n.index + 1 < n.tracks.length) playIndex(n.index + 1);
+  else { n.done = true; updateUI(); }
+});
+audio.addEventListener('error', async () => {
+  const n = state.now;
+  if (!n || n.retrying || audio.src.startsWith('data:')) return;
+  if (n.failedIndex === n.index) { $('pmsg').textContent = 'Oops, that one will not play. Please ask a grown-up.'; return; }
+  n.failedIndex = n.index; n.retrying = true;
+  try {
+    n.tracks = await fetchTracks(n.card.id); // fresh links in case the old ones expired
+    n.retrying = false;
+    playIndex(n.index);
+  } catch (e) {
+    n.retrying = false;
+    $('pmsg').textContent = 'Oops, that one will not play. Please ask a grown-up.';
+  }
+});
+
+function setMediaSession() {
+  try {
+    const n = state.now;
+    if (!('mediaSession' in navigator) || !n) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: n.tracks[n.index].title,
+      artist: n.card.title,
+      album: n.card.title,
+      artwork: n.card.cover ? [{ src: n.card.cover }] : []
+    });
+    navigator.mediaSession.setActionHandler('play', () => audio.play());
+    navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', goPrev);
+    navigator.mediaSession.setActionHandler('nexttrack', goNext);
+  } catch (e) {}
+}
+
+/* ---------- player screen ---------- */
+function renderPlayer(card, n) {
+  artFor(card, $('pcover'));
+  $('ptitle').textContent = card.title;
+  $('ptrack').textContent = n ? '' : 'Getting ready\u2026';
+  $('pmsg').textContent = '';
+  $('pbar').style.width = '0%';
+  const list = $('tracks');
+  list.replaceChildren();
+  if (n) {
+    n.tracks.forEach((t, i) => {
+      const b = el('button', {}, el('span', { class: 'num' }, String(i + 1)), el('span', { class: 'tt' }, t.title));
+      b.addEventListener('click', () => playIndex(i));
+      list.append(el('li', {}, b));
+    });
+  }
+  updateUI();
+}
+
+function updateUI() {
+  const n = state.now;
+  const playing = !!n && !audio.paused && !n.done;
+  $('playBtn').innerHTML = playing ? ICONS.pause : ICONS.play;
+  $('miniPlay').innerHTML = playing ? ICONS.pause : ICONS.play;
+  if (!n) return;
+  $('ptrack').textContent = n.tracks[n.index] ? n.tracks[n.index].title : '';
+  $('miniName').textContent = n.card.title;
+  artFor(n.card, $('miniArt'));
+  const items = $('tracks').querySelectorAll('button');
+  items.forEach((b, i) => b.classList.toggle('now', i === n.index));
+}
+
+function showPlayer() { $('player').hidden = false; $('mini').hidden = true; }
+function hidePlayer() {
+  $('player').hidden = true;
+  $('mini').hidden = !state.now;
+}
+
+/* ---------- grown-ups corner ---------- */
+function truncating(key, value) {
+  return (typeof value === 'string' && value.length > 70) ? value.slice(0, 50) + '\u2026[cut]' : value;
+}
+function openGrownups() {
+  const info = {
+    callbackUsed: CONFIG.redirectUri,
+    playlistsFound: state.cards.length,
+    firstItemFromYoto: state.raw && state.raw.cards ? state.raw.cards[0] : null,
+    lastPlaylistOpened: state.debug
+  };
+  $('dbg').textContent = JSON.stringify(info, truncating, 2);
+  $('grownups').hidden = false;
+}
+function setupLongPress() {
+  let timer = null;
+  const h = $('title');
+  h.addEventListener('pointerdown', () => { timer = setTimeout(openGrownups, 2000); });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
+    h.addEventListener(ev, () => clearTimeout(timer));
+  }
+  h.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+/* ---------- wire up ---------- */
+function wire() {
+  $('backBtn').innerHTML = ICONS.back;
+  $('prevBtn').innerHTML = ICONS.prev;
+  $('nextBtn').innerHTML = ICONS.next;
+  $('playBtn').innerHTML = ICONS.play;
+  $('miniPlay').innerHTML = ICONS.play;
+  $('loginBtn').addEventListener('click', startLogin);
+  $('backBtn').addEventListener('click', hidePlayer);
+  $('playBtn').addEventListener('click', togglePlay);
+  $('prevBtn').addEventListener('click', goPrev);
+  $('nextBtn').addEventListener('click', goNext);
+  $('miniPlay').addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
+  $('mini').addEventListener('click', showPlayer);
+  $('gClose').addEventListener('click', () => { $('grownups').hidden = true; });
+  $('gReload').addEventListener('click', async () => {
+    $('grownups').hidden = true;
+    try { await loadLibrary(); } catch (e) { handleLoadError(e); }
+  });
+  $('gSignOut').addEventListener('click', () => {
+    audio.pause(); audio.removeAttribute('src');
+    state.now = null; state.cards = [];
+    unstore('yk_tokens');
+    $('grownups').hidden = true;
+    showLogin();
+  });
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  setupLongPress();
+}
+
+function handleLoadError(e) {
+  if (e.message === 'signin') { showLogin('Please sign in again.'); return; }
+  showLibrary();
+  const offline = e instanceof TypeError;
+  setLibraryMessage(offline
+    ? 'Cannot reach Yoto right now. Check the Wi-Fi, then ask a grown-up to reload.'
+    : e.message);
+}
+
+(async function init() {
+  wire();
+  try {
+    await handleCallback();
+  } catch (e) {
+    showLogin(e.message);
+    return;
+  }
+  if (!getTokens()) { showLogin(); return; }
+  try { await loadLibrary(); } catch (e) { handleLoadError(e); }
+})();
+</script>
+</body>
+</html>
