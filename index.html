@@ -76,6 +76,35 @@
   }
   .strip::-webkit-scrollbar { height: 0; }
   .strip .tile { flex: none; width: 128px; }
+  .groups {
+    display: flex; gap: 16px; overflow-x: auto; padding: 4px 4px 14px;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+  }
+  .groups::-webkit-scrollbar { height: 0; }
+  .grp {
+    flex: none; width: 92px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: none; padding: 0;
+  }
+  .grp:active { transform: scale(.95); }
+  .gimg {
+    width: 84px; height: 84px; border-radius: 50%; overflow: hidden; background: #fff;
+    box-shadow: 0 4px 10px rgba(60, 40, 90, .15); border: 4px solid transparent;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .gimg img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gimg .ph { font-size: 2.2rem; }
+  .grp.on .gimg { border-color: var(--accent); }
+  .gname {
+    font-size: .85rem; font-weight: 700; line-height: 1.15; text-align: center; max-width: 92px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .tabs { display: flex; gap: 12px; padding: 2px 4px 14px; flex-wrap: wrap; }
+  .tab { background: var(--pill); font-size: 1.15rem; font-weight: 700; padding: 12px 26px; border-radius: 999px; }
+  .tab.on { background: var(--accent); color: #fff; box-shadow: 0 4px 0 var(--accent-dark); }
+  .tab:active { transform: translateY(2px); }
+  .grouphead { display: flex; align-items: center; gap: 12px; margin: 4px 4px 12px; }
+  .grouphead .sect { margin: 0; flex: 1; font-size: 1.4rem; color: var(--ink); }
+  .grouphead button { background: var(--pill); font-weight: 700; font-size: 1rem; padding: 10px 20px; border-radius: 999px; }
   #grid {
     display: grid; gap: 20px 16px;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -229,6 +258,15 @@
              autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search playlists">
     </div>
   </header>
+  <div id="groups" class="groups" hidden></div>
+  <div id="tabs" class="tabs">
+    <button class="tab on" id="tabMine" data-tab="mine">My Cards</button>
+    <button class="tab" id="tabClub" data-tab="club">Science Club</button>
+  </div>
+  <div id="groupHead" class="grouphead" hidden>
+    <h2 id="groupName" class="sect"></h2>
+    <button id="groupAll">Show all</button>
+  </div>
   <div id="msg" hidden></div>
   <section id="recentWrap" hidden>
     <h2 class="sect">Recently played</h2>
@@ -279,7 +317,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v4: search, recently played, resume, faster start, app icon';
+const VERSION = 'v5: groups row, My Cards / Science Club tabs';
 
 const CONFIG = {
   clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
@@ -302,7 +340,8 @@ const ICONS = {
 
 const $ = (id) => document.getElementById(id);
 const state = {
-  cards: [], libInfo: null, loadError: null, now: null, debug: null,
+  cards: [], groups: [], group: null, tab: 'mine', loaded: false,
+  libInfo: null, loadError: null, now: null, debug: null,
   lastScrolledIndex: -1, lastSave: 0, query: ''
 };
 
@@ -362,6 +401,49 @@ function loadLibraryCache() {
 function matches(card, query) {
   const t = card.title.toLowerCase();
   return query.split(/\s+/).filter(Boolean).every((w) => t.includes(w));
+}
+
+// Saved copy of her groups
+function saveGroupsCache(groups) { writeJson('yk_groups', groups); }
+function loadGroupsCache() {
+  const g = readJson('yk_groups', []);
+  return Array.isArray(g) ? g.filter((x) => x && x.id && Array.isArray(x.ids)) : [];
+}
+
+// Which tab a library item belongs on. Anything not clearly Club content stays in "My Cards".
+function isClub(item) {
+  const c = (item && item.card) || {};
+  const bits = [item && item.reason, item && item.shareType, c.availability]
+    .filter((x) => typeof x === 'string').join(' ').toLowerCase();
+  return /club|subscri|member/.test(bits);
+}
+function tally(items, pick) {
+  const out = {};
+  for (const it of items) { const k = String(pick(it)); out[k] = (out[k] || 0) + 1; }
+  return out;
+}
+// Groups come back from Yoto as { id, name, imageUrl, items: [{ contentId }] }
+function groupsFrom(libGroups, listGroups) {
+  const src = Array.isArray(libGroups) && libGroups.length ? libGroups : (Array.isArray(listGroups) ? listGroups : []);
+  return src.filter((g) => g && g.id).map((g) => {
+    const ids = [];
+    for (const it of (g.items || [])) if (it && it.contentId) ids.push(it.contentId);
+    for (const c of (g.cards || [])) { const id = c && (c.cardId || c.id); if (id) ids.push(id); }
+    return { id: g.id, name: g.name || 'Group', image: g.imageUrl || null, ids: Array.from(new Set(ids)) };
+  });
+}
+// What to show right now: a group (from both tabs), or the open tab, narrowed by the search words.
+function visibleCards(cards, groups, groupId, tab, query) {
+  let list;
+  if (groupId) {
+    const g = groups.find((x) => x.id === groupId);
+    const set = new Set(g ? g.ids : []);
+    list = cards.filter((c) => set.has(c.id));
+  } else {
+    list = cards.filter((c) => (c.kind || 'mine') === tab);
+  }
+  const q = (query || '').trim().toLowerCase();
+  return q ? list.filter((c) => matches(c, q)) : list;
 }
 // </storage>
 
@@ -523,11 +605,12 @@ function coverOf(c) {
 /* ---------- library: your own playlists + purchased, club and shared cards ---------- */
 async function loadLibrary() {
   if (!state.cards.length) setLibraryMessage('Loading playlists…');
-  const [mineRes, famRes] = await Promise.allSettled([
+  const [mineRes, famRes, grpRes] = await Promise.allSettled([
     api('/content/mine'),
-    api('/card/family/library?coverWidth=400')
+    api('/card/family/library?coverWidth=400&view=groups'),
+    api('/card/family/library/groups')
   ]);
-  for (const r of [mineRes, famRes]) {
+  for (const r of [mineRes, famRes, grpRes]) {
     if (r.status === 'rejected' && r.reason && r.reason.message === 'signin') throw r.reason;
   }
   if (mineRes.status === 'rejected' && famRes.status === 'rejected') throw mineRes.reason;
@@ -536,42 +619,57 @@ async function loadLibrary() {
   const fam = famRes.status === 'fulfilled' ? famRes.value : null;
 
   const byId = new Map();
-  const add = (id, title, cover) => {
+  const add = (id, title, cover, kind) => {
     if (!id) return;
     const prev = byId.get(id);
     if (prev) { if (!prev.cover && cover) prev.cover = cover; return; }
-    byId.set(id, { id, title: title || 'Untitled', cover: cover || null });
+    byId.set(id, { id, title: title || 'Untitled', cover: cover || null, kind: kind || 'mine' });
   };
   if (mine) {
     for (const c of (mine.cards || [])) {
       if (c.deleted) continue;
-      add(c.cardId, c.title || (c.metadata && c.metadata.title), coverOf(c));
+      add(c.cardId, c.title || (c.metadata && c.metadata.title), coverOf(c), 'mine');
     }
   }
   if (fam) {
     for (const item of (fam.cards || [])) {
       const c = item.card || {};
-      add(item.cardId || c.cardId, c.title, coverOf(c));
+      add(item.cardId || c.cardId, c.title, coverOf(c), isClub(item) ? 'club' : 'mine');
     }
   }
 
   const fresh = Array.from(byId.values())
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  const famItems = fam && Array.isArray(fam.cards) ? fam.cards : [];
+  const groups = groupsFrom(fam && fam.groups, grpRes.status === 'fulfilled' ? grpRes.value : null);
   state.libInfo = {
     myoPlaylists: mine && mine.cards ? mine.cards.length : null,
     myoError: mineRes.status === 'rejected' ? mineRes.reason.message : null,
-    familyLibraryItems: fam && fam.cards ? fam.cards.length : null,
+    familyLibraryItems: famItems.length,
     familyError: famRes.status === 'rejected' ? famRes.reason.message : null,
-    totalShown: fresh.length
+    groupsError: grpRes.status === 'rejected' ? grpRes.reason.message : null,
+    groupsFound: groups.length,
+    groupSizes: groups.map((g) => g.name + ': ' + g.ids.length),
+    inMyCards: fresh.filter((c) => c.kind !== 'club').length,
+    inScienceClub: fresh.filter((c) => c.kind === 'club').length,
+    howFamilyItemsLookedToUs: {
+      reason: tally(famItems, (i) => i.reason),
+      shareType: tally(famItems, (i) => i.shareType),
+      availability: tally(famItems, (i) => i.card && i.card.availability)
+    }
   };
   state.loadError = null;
+  state.loaded = true;
 
   // Only redraw if something actually changed, so the screen doesn't flicker after a quiet refresh.
-  const changed = JSON.stringify(fresh) !== JSON.stringify(state.cards);
+  const changed = JSON.stringify(fresh) !== JSON.stringify(state.cards)
+    || JSON.stringify(groups) !== JSON.stringify(state.groups);
   state.cards = fresh;
+  state.groups = groups;
   saveLibraryCache(fresh);
+  saveGroupsCache(groups);
   if (changed) renderLibrary();
-  setLibraryMessage(fresh.length ? '' : 'No playlists found.');
+  updateMessage();
   showLibrary();
 }
 
@@ -586,7 +684,9 @@ function tileFor(c) {
 function renderRecent() {
   const q = state.query.trim();
   const byId = new Map(state.cards.map((c) => [c.id, c]));
-  const recent = q ? [] : getRecent().map((id) => byId.get(id)).filter(Boolean);
+  const recent = (q || state.group) ? [] : getRecent()
+    .map((id) => byId.get(id))
+    .filter((c) => c && (c.kind || 'mine') === state.tab);
   const strip = $('recent');
   strip.replaceChildren();
   for (const c of recent) strip.append(tileFor(c));
@@ -594,16 +694,67 @@ function renderRecent() {
   $('allHead').hidden = recent.length === 0;
 }
 
-function renderLibrary() {
-  const q = state.query.trim().toLowerCase();
+function renderGroups() {
+  const box = $('groups');
+  box.replaceChildren();
+  for (const g of state.groups) {
+    const pic = el('span', { class: 'gimg' });
+    if (g.image) {
+      const im = el('img', { src: g.image, alt: '', loading: 'lazy', draggable: 'false' });
+      im.onerror = () => { pic.replaceChildren(placeholder(g.name)); };
+      pic.append(im);
+    } else {
+      pic.append(placeholder(g.name));
+    }
+    const b = el('button', { class: 'grp' + (state.group === g.id ? ' on' : '') }, pic, el('span', { class: 'gname' }, g.name));
+    b.addEventListener('click', () => {
+      state.group = state.group === g.id ? null : g.id;
+      renderChrome(); renderGrid();
+      try { window.scrollTo(0, 0); } catch (e) {}
+    });
+    box.append(b);
+  }
+  box.hidden = state.groups.length === 0;
+}
+
+// The parts above the grid: group pictures, the two tabs, and the "showing a group" banner.
+function renderChrome() {
+  let g = state.group ? state.groups.find((x) => x.id === state.group) : null;
+  if (state.group && !g) state.group = null;
+  renderGroups();
+  $('tabs').hidden = !!g;
+  $('groupHead').hidden = !g;
+  if (g) $('groupName').textContent = g.name;
+  for (const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.tab === state.tab);
+}
+
+function updateMessage() {
+  if (!state.cards.length) { setLibraryMessage(state.loaded ? 'No playlists found.' : 'Loading playlists…'); return; }
+  const list = visibleCards(state.cards, state.groups, state.group, state.tab, state.query);
+  if (list.length) { setLibraryMessage(''); return; }
+  const q = state.query.trim();
+  if (q) {
+    const other = state.tab === 'mine' ? 'club' : 'mine';
+    const n = state.group ? 0 : visibleCards(state.cards, state.groups, null, other, q).length;
+    setLibraryMessage(n
+      ? 'Nothing here, but ' + (n === 1 ? 'there is 1' : 'there are ' + n) + ' in ' + (other === 'club' ? 'Science Club' : 'My Cards') + '.'
+      : 'Nothing found. Try a different word.');
+  } else if (state.group) {
+    setLibraryMessage('Nothing in this group yet.');
+  } else {
+    setLibraryMessage(state.tab === 'club' ? 'Nothing in Science Club yet.' : 'Nothing here yet.');
+  }
+}
+
+function renderGrid() {
   const grid = $('grid');
   grid.replaceChildren();
-  const list = q ? state.cards.filter((c) => matches(c, q)) : state.cards;
-  for (const c of list) grid.append(tileFor(c));
+  for (const c of visibleCards(state.cards, state.groups, state.group, state.tab, state.query)) grid.append(tileFor(c));
   renderRecent();
-  if (q && !list.length) setLibraryMessage('Nothing found. Try a different word.');
-  else if ($('msg').textContent.startsWith('Nothing found')) setLibraryMessage('');
+  updateMessage();
 }
+
+function renderLibrary() { renderChrome(); renderGrid(); }
 
 /* ---------- audio ---------- */
 const audio = new Audio();
@@ -921,8 +1072,8 @@ function wire() {
   });
   $('gSignOut').addEventListener('click', () => {
     audio.pause(); audio.removeAttribute('src');
-    state.now = null; state.cards = [];
-    unstore('yk_tokens'); unstore('yk_library');
+    state.now = null; state.cards = []; state.groups = []; state.group = null;
+    unstore('yk_tokens'); unstore('yk_library'); unstore('yk_groups');
     $('grownups').hidden = true;
     showLogin();
   });
@@ -930,9 +1081,18 @@ function wire() {
   let searchTimer = null;
   $('search').addEventListener('input', (e) => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => { state.query = e.target.value; renderLibrary(); }, 150);
+    searchTimer = setTimeout(() => { state.query = e.target.value; renderGrid(); }, 150);
   });
   $('search').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+
+  for (const b of document.querySelectorAll('.tab')) {
+    b.addEventListener('click', () => {
+      state.tab = b.dataset.tab === 'club' ? 'club' : 'mine';
+      store('yk_tab', state.tab);
+      renderChrome(); renderGrid();
+    });
+  }
+  $('groupAll').addEventListener('click', () => { state.group = null; renderChrome(); renderGrid(); });
 
   document.addEventListener('gesturestart', (e) => e.preventDefault());
   setupLongPress();
@@ -959,8 +1119,9 @@ function handleLoadError(e) {
   }
   if (!getTokens()) { showLogin(); return; }
   // Show the saved list straight away, then quietly refresh it.
+  state.tab = fetchStored('yk_tab') === 'club' ? 'club' : 'mine';
   const cached = loadLibraryCache();
-  if (cached.length) { state.cards = cached; renderLibrary(); showLibrary(); }
+  if (cached.length) { state.cards = cached; state.groups = loadGroupsCache(); renderLibrary(); showLibrary(); }
   try { await loadLibrary(); } catch (e) { handleLoadError(e); }
 })();
 </script>
