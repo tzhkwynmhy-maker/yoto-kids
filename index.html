@@ -7,6 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="My Yoto">
 <meta name="theme-color" content="#fff4e0">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
 <title>My Yoto</title>
 <style>
   :root {
@@ -30,6 +32,7 @@
     touch-action: manipulation;
     overscroll-behavior: none;
   }
+  input { -webkit-user-select: text; user-select: text; }
   img { -webkit-user-drag: none; pointer-events: none; }
   button { font: inherit; color: inherit; border: 0; cursor: pointer; }
   svg { width: 100%; height: 100%; fill: currentColor; display: block; }
@@ -54,8 +57,25 @@
 
   /* ---------- Library ---------- */
   #library { padding: max(env(safe-area-inset-top), 16px) 18px 150px; }
-  #library header { padding: 6px 4px 14px; }
+  #library header {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px 20px;
+    flex-wrap: wrap; padding: 6px 4px 14px;
+  }
   #title { margin: 0; font-size: 2.2rem; letter-spacing: .5px; display: inline-block; }
+  .search { flex: 1 1 220px; max-width: 420px; }
+  #search {
+    width: 100%; font: inherit; font-size: 1.1rem; color: var(--ink);
+    padding: 12px 20px; border-radius: 999px; border: 2px solid #f3d3a8; background: #fff;
+    -webkit-appearance: none; appearance: none; outline: none;
+  }
+  #search:focus { border-color: var(--accent); }
+  .sect { margin: 6px 4px 12px; font-size: 1.2rem; color: var(--soft); }
+  .strip {
+    display: flex; gap: 14px; overflow-x: auto; padding: 4px 4px 16px;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+  }
+  .strip::-webkit-scrollbar { height: 0; }
+  .strip .tile { flex: none; width: 128px; }
   #grid {
     display: grid; gap: 20px 16px;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -140,6 +160,12 @@
     width: 40px; height: 40px; border-radius: 50%; background: var(--pill); color: var(--ink);
     display: flex; align-items: center; justify-content: center; flex: none; font-size: 1rem; font-weight: 700;
   }
+  #tracks .ico {
+    width: 56px; height: 56px; border-radius: 14px; background: var(--pill); flex: none;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  #tracks .ico img { width: 44px; height: 44px; image-rendering: pixelated; display: block; }
+  #tracks li button.now .ico { background: #fff; }
   #tracks li button.now .num { background: #fff; color: var(--accent-dark); }
   #tracks .tt {
     flex: 1; line-height: 1.25;
@@ -196,8 +222,19 @@
 </section>
 
 <section id="library" hidden>
-  <header><h1 id="title">My Yoto</h1></header>
+  <header>
+    <h1 id="title">My Yoto</h1>
+    <div class="search">
+      <input id="search" type="search" placeholder="Search" autocomplete="off" autocapitalize="off"
+             autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Search playlists">
+    </div>
+  </header>
   <div id="msg" hidden></div>
+  <section id="recentWrap" hidden>
+    <h2 class="sect">Recently played</h2>
+    <div id="recent" class="strip"></div>
+  </section>
+  <h2 id="allHead" class="sect" hidden>All playlists</h2>
   <main id="grid"></main>
 </section>
 
@@ -242,7 +279,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v2: portrait covers, family library, roomier player';
+const VERSION = 'v4: search, recently played, resume, faster start, app icon';
 
 const CONFIG = {
   clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
@@ -264,7 +301,10 @@ const ICONS = {
 };
 
 const $ = (id) => document.getElementById(id);
-const state = { cards: [], libInfo: null, now: null, debug: null, lastScrolledIndex: -1 };
+const state = {
+  cards: [], libInfo: null, loadError: null, now: null, debug: null,
+  lastScrolledIndex: -1, lastSave: 0, query: ''
+};
 
 function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
@@ -276,9 +316,54 @@ function el(tag, attrs = {}, ...kids) {
 }
 
 /* ---------- storage ---------- */
+// <storage>
 function store(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
 function fetchStored(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
 function unstore(key) { try { localStorage.removeItem(key); } catch (e) {} }
+function readJson(key, fallback) {
+  try { const v = JSON.parse(fetchStored(key)); return v == null ? fallback : v; } catch (e) { return fallback; }
+}
+function writeJson(key, val) { store(key, JSON.stringify(val)); }
+
+// Recently played (most recent first)
+const RECENT_MAX = 8;
+function getRecent() { const r = readJson('yk_recent', []); return Array.isArray(r) ? r : []; }
+function markRecent(id) {
+  const r = getRecent().filter((x) => x !== id);
+  r.unshift(id);
+  writeJson('yk_recent', r.slice(0, RECENT_MAX));
+}
+
+// Where she was up to in each playlist: { cardId: { i: trackIndex, t: seconds, at: when } }
+function getPositions() { const p = readJson('yk_pos', {}); return p && typeof p === 'object' && !Array.isArray(p) ? p : {}; }
+function savePosition(cardId, index, time) {
+  const p = getPositions();
+  p[cardId] = { i: index, t: Math.max(0, Math.floor(time || 0)), at: Date.now() };
+  const keys = Object.keys(p);
+  if (keys.length > 120) {
+    keys.sort((a, b) => p[a].at - p[b].at);
+    for (const k of keys.slice(0, keys.length - 120)) delete p[k];
+  }
+  writeJson('yk_pos', p);
+}
+function clearPosition(cardId) {
+  const p = getPositions();
+  if (cardId in p) { delete p[cardId]; writeJson('yk_pos', p); }
+}
+
+// Saved copy of the playlist list so the app opens instantly
+function saveLibraryCache(cards) { writeJson('yk_library', { at: Date.now(), cards }); }
+function loadLibraryCache() {
+  const c = readJson('yk_library', null);
+  return c && Array.isArray(c.cards) ? c.cards.filter((x) => x && x.id && x.title) : [];
+}
+
+// Search: every typed word must appear somewhere in the title
+function matches(card, query) {
+  const t = card.title.toLowerCase();
+  return query.split(/\s+/).filter(Boolean).every((w) => t.includes(w));
+}
+// </storage>
 
 /* ---------- PKCE helpers ---------- */
 // <pkce>
@@ -437,7 +522,7 @@ function coverOf(c) {
 
 /* ---------- library: your own playlists + purchased, club and shared cards ---------- */
 async function loadLibrary() {
-  setLibraryMessage('Loading playlists…');
+  if (!state.cards.length) setLibraryMessage('Loading playlists…');
   const [mineRes, famRes] = await Promise.allSettled([
     api('/content/mine'),
     api('/card/family/library?coverWidth=400')
@@ -470,31 +555,54 @@ async function loadLibrary() {
     }
   }
 
-  state.cards = Array.from(byId.values())
+  const fresh = Array.from(byId.values())
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
   state.libInfo = {
     myoPlaylists: mine && mine.cards ? mine.cards.length : null,
     myoError: mineRes.status === 'rejected' ? mineRes.reason.message : null,
     familyLibraryItems: fam && fam.cards ? fam.cards.length : null,
     familyError: famRes.status === 'rejected' ? famRes.reason.message : null,
-    totalShown: state.cards.length,
-    firstFamilyItem: fam && fam.cards ? fam.cards[0] : null
+    totalShown: fresh.length
   };
-  setLibraryMessage(state.cards.length ? '' : 'No playlists found.');
-  renderLibrary();
+  state.loadError = null;
+
+  // Only redraw if something actually changed, so the screen doesn't flicker after a quiet refresh.
+  const changed = JSON.stringify(fresh) !== JSON.stringify(state.cards);
+  state.cards = fresh;
+  saveLibraryCache(fresh);
+  if (changed) renderLibrary();
+  setLibraryMessage(fresh.length ? '' : 'No playlists found.');
   showLibrary();
 }
 
+function tileFor(c) {
+  const art = el('div', { class: 'art' });
+  artFor(c, art);
+  const b = el('button', { class: 'tile' }, art, el('span', { class: 'name' }, c.title));
+  b.addEventListener('click', () => openPlaylist(c));
+  return b;
+}
+
+function renderRecent() {
+  const q = state.query.trim();
+  const byId = new Map(state.cards.map((c) => [c.id, c]));
+  const recent = q ? [] : getRecent().map((id) => byId.get(id)).filter(Boolean);
+  const strip = $('recent');
+  strip.replaceChildren();
+  for (const c of recent) strip.append(tileFor(c));
+  $('recentWrap').hidden = recent.length === 0;
+  $('allHead').hidden = recent.length === 0;
+}
+
 function renderLibrary() {
+  const q = state.query.trim().toLowerCase();
   const grid = $('grid');
   grid.replaceChildren();
-  for (const c of state.cards) {
-    const art = el('div', { class: 'art' });
-    artFor(c, art);
-    const b = el('button', { class: 'tile' }, art, el('span', { class: 'name' }, c.title));
-    b.addEventListener('click', () => openPlaylist(c));
-    grid.append(b);
-  }
+  const list = q ? state.cards.filter((c) => matches(c, q)) : state.cards;
+  for (const c of list) grid.append(tileFor(c));
+  renderRecent();
+  if (q && !list.length) setLibraryMessage('Nothing found. Try a different word.');
+  else if ($('msg').textContent.startsWith('Nothing found')) setLibraryMessage('');
 }
 
 /* ---------- audio ---------- */
@@ -523,11 +631,26 @@ function chaptersOf(data) {
   const c = data && (data.card || data);
   return (c && c.content && c.content.chapters) || [];
 }
+// Turns Yoto's icon values into a picture address. A track with no icon of its own uses its chapter's.
+function iconUrlFrom(d) {
+  if (!d) return null;
+  const http = /^https?:\/\//;
+  if (typeof d.iconUrl16x16 === 'string' && http.test(d.iconUrl16x16)) return d.iconUrl16x16;
+  const v = d.icon16x16;
+  if (typeof v !== 'string' || !v) return null;
+  if (http.test(v)) return v;
+  const m = v.match(/^yoto:#?(.+)$/);
+  return m ? 'https://card-content.yotoplay.com/yoto/' + m[1] : null;
+}
 function tracksFrom(data) {
   const out = [];
   for (const ch of chaptersOf(data)) {
     for (const t of (ch.tracks || [])) {
-      out.push({ title: t.title || ch.title || 'Track', url: pickUrl(t) || pickUrl(ch) });
+      out.push({
+        title: t.title || ch.title || 'Track',
+        url: pickUrl(t) || pickUrl(ch),
+        icon: iconUrlFrom(t.display) || iconUrlFrom(ch.display)
+      });
     }
   }
   return out;
@@ -550,7 +673,13 @@ async function fetchTracks(card) {
       const data = await api(path);
       const tracks = tracksFrom(data);
       if (!sample) sample = sampleFrom(data);
-      attempts.push({ call: label, tracks: tracks.length, withAudioLink: tracks.filter((t) => t.url).length });
+      attempts.push({
+        call: label,
+        tracks: tracks.length,
+        withAudioLink: tracks.filter((t) => t.url).length,
+        withIcon: tracks.filter((t) => t.icon).length,
+        firstIcon: tracks[0] ? tracks[0].icon : null
+      });
       if (tracks.some((t) => t.url)) { best = tracks; break; }
     } catch (e) {
       if (e.message === 'signin') throw e;
@@ -565,9 +694,19 @@ async function fetchTracks(card) {
   throw lastErr || new Error('nourl');
 }
 
+// Remember where she is, so reopening a story carries on from there.
+function saveNow() {
+  const n = state.now;
+  if (!n || n.done || audio.src.startsWith('data:') || !(audio.currentTime > 0)) return;
+  savePosition(n.card.id, n.index, audio.currentTime);
+}
+
 async function openPlaylist(card) {
   if (state.now && state.now.card.id === card.id) { showPlayer(); return; }
+  saveNow();
   unlockAudio();
+  markRecent(card.id);
+  renderRecent();
   state.now = null;
   state.lastScrolledIndex = -1;
   renderPlayer(card, null);
@@ -575,9 +714,15 @@ async function openPlaylist(card) {
   try {
     const tracks = await fetchTracks(card);
     if (!tracks.length) throw new Error('empty');
-    state.now = { card, tracks, index: 0, done: false, failedIndex: null, retrying: false };
+    let startIndex = 0, startTime = 0;
+    const pos = getPositions()[card.id];
+    if (pos && Number.isInteger(pos.i) && pos.i >= 0 && pos.i < tracks.length) {
+      startIndex = pos.i;
+      startTime = pos.t > 5 ? pos.t - 2 : 0; // back up a couple of seconds to catch the thread
+    }
+    state.now = { card, tracks, index: startIndex, done: false, failedIndex: null, retrying: false, pendingSeek: null };
     renderPlayer(card, state.now);
-    playIndex(0);
+    playIndex(startIndex, startTime);
   } catch (e) {
     if (e.message === 'signin') { hidePlayer(); showLogin('Please sign in again.'); return; }
     $('pmsg').textContent = e.message === 'empty'
@@ -587,12 +732,15 @@ async function openPlaylist(card) {
   }
 }
 
-function playIndex(i) {
+function playIndex(i, seekTo = 0) {
   const n = state.now;
   if (!n || i < 0 || i >= n.tracks.length) return;
   n.index = i; n.done = false;
   const t = n.tracks[i];
   if (!t.url) { if (i + 1 < n.tracks.length) playIndex(i + 1); return; }
+  n.pendingSeek = seekTo > 0 ? seekTo : null;
+  state.lastSave = Date.now();
+  savePosition(n.card.id, i, seekTo);
   audio.src = t.url;
   audio.play().catch(() => {});
   updateUI();
@@ -613,31 +761,44 @@ function goPrev() {
 }
 
 audio.addEventListener('play', updateUI);
-audio.addEventListener('pause', updateUI);
+audio.addEventListener('pause', () => { saveNow(); updateUI(); });
 audio.addEventListener('playing', () => { if (state.now) state.now.failedIndex = null; $('pmsg').textContent = ''; updateUI(); });
+audio.addEventListener('loadedmetadata', () => {
+  const n = state.now;
+  if (n && n.pendingSeek != null) {
+    const t = n.pendingSeek;
+    n.pendingSeek = null;
+    if (isFinite(audio.duration) && t < audio.duration - 5) { try { audio.currentTime = t; } catch (e) {} }
+  }
+});
 audio.addEventListener('timeupdate', () => {
   const d = audio.duration;
   $('pbar').style.width = (d && isFinite(d) ? Math.min(100, (audio.currentTime / d) * 100) : 0) + '%';
+  const now = Date.now();
+  if (now - state.lastSave > 5000 && !audio.paused) { state.lastSave = now; saveNow(); }
 });
 audio.addEventListener('ended', () => {
   const n = state.now; if (!n) return;
   if (n.index + 1 < n.tracks.length) playIndex(n.index + 1);
-  else { n.done = true; updateUI(); }
+  else { n.done = true; clearPosition(n.card.id); updateUI(); }
 });
 audio.addEventListener('error', async () => {
   const n = state.now;
   if (!n || n.retrying || audio.src.startsWith('data:')) return;
   if (n.failedIndex === n.index) { $('pmsg').textContent = 'Oops, that one will not play. Please ask a grown-up.'; return; }
   n.failedIndex = n.index; n.retrying = true;
+  const resumeAt = audio.currentTime || 0;
   try {
     n.tracks = await fetchTracks(n.card); // fresh links in case the old ones expired
     n.retrying = false;
-    playIndex(n.index);
+    playIndex(n.index, resumeAt);
   } catch (e) {
     n.retrying = false;
     $('pmsg').textContent = 'Oops, that one will not play. Please ask a grown-up.';
   }
 });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(); });
+window.addEventListener('pagehide', saveNow);
 
 function setMediaSession() {
   try {
@@ -668,7 +829,15 @@ function renderPlayer(card, n) {
   list.scrollTop = 0;
   if (n) {
     n.tracks.forEach((t, i) => {
-      const b = el('button', {}, el('span', { class: 'num' }, String(i + 1)), el('span', { class: 'tt' }, t.title));
+      // Show the track's little picture; if it can't be loaded, fall back to the track number.
+      const badge = el('span', { class: 'num' }, String(i + 1));
+      let lead = badge;
+      if (t.icon) {
+        const img = el('img', { src: t.icon, alt: '', draggable: 'false' });
+        lead = el('span', { class: 'ico' }, img);
+        img.onerror = () => { lead.replaceWith(badge); };
+      }
+      const b = el('button', {}, lead, el('span', { class: 'tt' }, t.title));
       b.addEventListener('click', () => playIndex(i));
       list.append(el('li', {}, b));
     });
@@ -712,6 +881,10 @@ function openGrownups() {
     version: VERSION,
     callbackUsed: CONFIG.redirectUri,
     library: state.libInfo,
+    lastLoadError: state.loadError,
+    playlistsOnScreen: state.cards.length,
+    recentlyPlayed: getRecent().length,
+    playlistsWithSavedPlace: Object.keys(getPositions()).length,
     lastPlaylistOpened: state.debug
   };
   $('dbg').textContent = JSON.stringify(info, truncating, 2);
@@ -749,17 +922,27 @@ function wire() {
   $('gSignOut').addEventListener('click', () => {
     audio.pause(); audio.removeAttribute('src');
     state.now = null; state.cards = [];
-    unstore('yk_tokens');
+    unstore('yk_tokens'); unstore('yk_library');
     $('grownups').hidden = true;
     showLogin();
   });
+
+  let searchTimer = null;
+  $('search').addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { state.query = e.target.value; renderLibrary(); }, 150);
+  });
+  $('search').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+
   document.addEventListener('gesturestart', (e) => e.preventDefault());
   setupLongPress();
 }
 
 function handleLoadError(e) {
   if (e.message === 'signin') { showLogin('Please sign in again.'); return; }
+  state.loadError = e.message;
   showLibrary();
+  if (state.cards.length) { setLibraryMessage(''); return; } // keep showing the saved list quietly
   const offline = e instanceof TypeError;
   setLibraryMessage(offline
     ? 'Cannot reach Yoto right now. Check the Wi-Fi, then ask a grown-up to reload.'
@@ -775,6 +958,9 @@ function handleLoadError(e) {
     return;
   }
   if (!getTokens()) { showLogin(); return; }
+  // Show the saved list straight away, then quietly refresh it.
+  const cached = loadLibraryCache();
+  if (cached.length) { state.cards = cached; renderLibrary(); showLibrary(); }
   try { await loadLibrary(); } catch (e) { handleLoadError(e); }
 })();
 </script>
