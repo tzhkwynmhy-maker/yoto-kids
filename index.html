@@ -53,29 +53,30 @@
   .err { color: #b3261e; font-weight: 600; }
 
   /* ---------- Library ---------- */
-  #library { padding: max(env(safe-area-inset-top), 16px) 20px 140px; }
+  #library { padding: max(env(safe-area-inset-top), 16px) 18px 150px; }
   #library header { padding: 6px 4px 14px; }
-  #title { margin: 0; font-size: 2.4rem; letter-spacing: .5px; display: inline-block; }
+  #title { margin: 0; font-size: 2.2rem; letter-spacing: .5px; display: inline-block; }
   #grid {
-    display: grid; gap: 22px 18px;
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    display: grid; gap: 20px 16px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
   .tile {
-    background: var(--card); border-radius: 24px; padding: 10px 10px 14px;
-    box-shadow: 0 6px 16px rgba(60, 40, 90, .12); text-align: center;
-    display: flex; flex-direction: column; gap: 10px;
+    background: var(--card); border-radius: 20px; padding: 8px 8px 12px;
+    box-shadow: 0 5px 14px rgba(60, 40, 90, .12); text-align: center;
+    display: flex; flex-direction: column; gap: 8px;
   }
   .tile:active { transform: scale(.96); }
   .art {
-    width: 100%; aspect-ratio: 1; border-radius: 16px; overflow: hidden; background: var(--pill);
+    width: 100%; aspect-ratio: 2 / 3; border-radius: 14px; overflow: hidden; background: var(--pill);
   }
   .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .art img.wide { object-fit: contain; }
   .ph {
     width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-    font-size: 4rem; font-weight: 800; color: rgba(43, 35, 64, .55);
+    font-size: 3.2rem; font-weight: 800; color: rgba(43, 35, 64, .55);
   }
   .name {
-    font-size: 1.05rem; font-weight: 700; line-height: 1.25;
+    font-size: .98rem; font-weight: 700; line-height: 1.25;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     min-height: 2.5em;
   }
@@ -84,56 +85,85 @@
   /* ---------- Mini bar ---------- */
   #mini {
     position: fixed; left: 12px; right: 12px; bottom: max(env(safe-area-inset-bottom), 12px);
-    background: #fff; border-radius: 28px; padding: 10px 14px 10px 10px;
+    background: #fff; border-radius: 26px; padding: 8px 14px 8px 8px;
     display: flex; align-items: center; gap: 14px;
     box-shadow: 0 8px 24px rgba(60, 40, 90, .25); z-index: 5;
   }
-  #miniArt { width: 64px; height: 64px; border-radius: 14px; overflow: hidden; flex: none; }
+  #miniArt { width: 48px; height: 72px; border-radius: 10px; overflow: hidden; flex: none; background: var(--pill); }
   #miniName { flex: 1; font-size: 1.15rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .round {
-    width: 72px; height: 72px; border-radius: 50%; background: var(--pill); color: var(--ink);
-    padding: 20px; flex: none;
+    width: 64px; height: 64px; border-radius: 50%; background: var(--pill); color: var(--ink);
+    padding: 18px; flex: none;
   }
   .round:active { transform: scale(.92); }
-  .round.big { width: 112px; height: 112px; padding: 30px; background: var(--accent); color: #fff; box-shadow: 0 6px 0 var(--accent-dark); }
+  .round.big { width: 92px; height: 92px; padding: 26px; background: var(--accent); color: #fff; box-shadow: 0 5px 0 var(--accent-dark); }
+  #mini .round { width: 60px; height: 60px; padding: 16px; }
 
-  /* ---------- Player ---------- */
+  /* ---------- Player (portrait: stacked) ---------- */
   #player {
     position: fixed; inset: 0; background: var(--bg); z-index: 10;
-    display: flex; flex-direction: column; align-items: center;
-    padding: max(env(safe-area-inset-top), 14px) 20px max(env(safe-area-inset-bottom), 14px);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: max(env(safe-area-inset-top), 12px) 18px max(env(safe-area-inset-bottom), 12px);
     overflow: hidden;
   }
-  #backBtn { align-self: flex-start; padding: 18px 20px 18px 16px; }
-  .pbody { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 640px; }
+  #backBtn { align-self: flex-start; width: 56px; height: 56px; padding: 14px 16px 14px 12px; }
+  .pbody { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; max-width: 640px; flex: none; }
   .pcover {
-    width: min(38vh, 70vw); height: min(38vh, 70vw); border-radius: 28px; overflow: hidden;
-    box-shadow: 0 10px 28px rgba(60, 40, 90, .25); background: var(--pill);
+    height: min(32vh, 340px); aspect-ratio: 2 / 3; border-radius: 20px; overflow: hidden;
+    box-shadow: 0 8px 22px rgba(60, 40, 90, .25); background: var(--pill);
   }
   .pcover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  #ptitle { margin: 6px 0 0; font-size: 1.7rem; text-align: center; line-height: 1.2; }
-  #ptrack { margin: 0; color: var(--soft); font-size: 1.15rem; text-align: center; min-height: 1.4em; }
-  .bar { width: 100%; height: 12px; border-radius: 6px; background: #ffd9a8; overflow: hidden; }
-  .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 6px; }
-  .controls { display: flex; align-items: center; justify-content: center; gap: 30px; padding: 6px 0; }
-  #pmsg { color: #b3261e; font-weight: 700; text-align: center; margin: 0; min-height: 1.2em; }
+  .pcover img.wide { object-fit: contain; }
+  #ptitle { margin: 4px 0 0; font-size: 1.4rem; text-align: center; line-height: 1.2; }
+  #ptrack { margin: 0; color: var(--soft); font-size: 1.05rem; text-align: center; min-height: 1.3em; }
+  .bar { width: 100%; height: 10px; border-radius: 5px; background: #ffd9a8; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 5px; }
+  .controls { display: flex; align-items: center; justify-content: center; gap: 26px; padding: 4px 0; }
+  #pmsg { color: #b3261e; font-weight: 700; text-align: center; margin: 0; min-height: 1.1em; }
+
   #tracks {
-    list-style: none; margin: 8px 0 0; padding: 0; width: 100%; max-width: 640px;
-    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    list-style: none; margin: 4px 0 0; padding: 4px 4px 24px; width: 100%; max-width: 640px;
+    flex: 1; min-height: 0; overflow-y: scroll; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain; touch-action: pan-y;
   }
+  #tracks::-webkit-scrollbar { width: 14px; }
+  #tracks::-webkit-scrollbar-thumb { background: #e9b98a; border-radius: 8px; border: 3px solid var(--bg); }
   #tracks li button {
-    width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
-    background: var(--card); border-radius: 18px; padding: 12px 16px; margin-bottom: 10px;
-    font-size: 1.1rem; font-weight: 600; box-shadow: 0 3px 8px rgba(60, 40, 90, .08);
+    width: 100%; min-height: 66px; display: flex; align-items: center; gap: 14px; text-align: left;
+    background: var(--card); border-radius: 18px; padding: 10px 16px; margin-bottom: 10px;
+    font-size: 1.2rem; font-weight: 600; box-shadow: 0 3px 8px rgba(60, 40, 90, .08);
   }
+  #tracks li button:active { transform: scale(.98); }
   #tracks li button.now { background: var(--accent); color: #fff; }
   #tracks .num {
-    width: 34px; height: 34px; border-radius: 50%; background: var(--pill); color: var(--ink);
-    display: flex; align-items: center; justify-content: center; flex: none; font-size: .95rem;
+    width: 40px; height: 40px; border-radius: 50%; background: var(--pill); color: var(--ink);
+    display: flex; align-items: center; justify-content: center; flex: none; font-size: 1rem; font-weight: 700;
   }
   #tracks li button.now .num { background: #fff; color: var(--accent-dark); }
-  #tracks .tt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #tracks .tt {
+    flex: 1; line-height: 1.25;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  /* ---------- Player (wide screens: cover + controls left, track list right) ---------- */
+  @media (orientation: landscape) and (min-width: 800px) {
+    #player {
+      display: grid; grid-template-columns: 40% 1fr; grid-template-rows: auto 1fr;
+      column-gap: 28px; row-gap: 0; align-items: start; justify-items: stretch;
+    }
+    #backBtn { grid-column: 1; grid-row: 1; }
+    .pbody { grid-column: 1; grid-row: 2; align-self: start; margin: 0 auto; }
+    .pcover { height: min(40vh, 330px); }
+    #tracks {
+      grid-column: 2; grid-row: 1 / span 2; align-self: stretch; max-width: none;
+      height: 100%; margin: 0;
+    }
+  }
+  @media (max-height: 640px) {
+    .pcover { height: min(28vh, 220px); }
+    .round.big { width: 76px; height: 76px; padding: 20px; }
+  }
 
   /* ---------- Grown-ups corner ---------- */
   #grownups {
@@ -212,6 +242,8 @@
 <script>
 'use strict';
 
+const VERSION = 'v2: portrait covers, family library, roomier player';
+
 const CONFIG = {
   clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
   authorizeUrl: 'https://login.yotoplay.com/authorize',
@@ -232,7 +264,7 @@ const ICONS = {
 };
 
 const $ = (id) => document.getElementById(id);
-const state = { cards: [], raw: null, now: null, debug: null };
+const state = { cards: [], libInfo: null, now: null, debug: null, lastScrolledIndex: -1 };
 
 function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
@@ -378,7 +410,7 @@ function setLibraryMessage(text) {
 }
 
 function placeholder(title) {
-  const first = Array.from((title || '').trim())[0] || '\u266A';
+  const first = Array.from((title || '').trim())[0] || '♪';
   let sum = 0; for (const ch of title || '') sum += ch.charCodeAt(0);
   const d = el('div', { class: 'ph' }, first.toUpperCase());
   d.style.background = 'hsl(' + ((sum * 37) % 360) + ' 70% 82%)';
@@ -388,6 +420,10 @@ function artFor(card, into) {
   into.replaceChildren();
   if (card.cover) {
     const img = el('img', { src: card.cover, alt: '', loading: 'lazy', draggable: 'false' });
+    // Portrait artwork fills the frame; squarer artwork is shown whole instead of being cropped.
+    img.onload = () => {
+      if (img.naturalHeight && img.naturalWidth / img.naturalHeight > 0.85) img.classList.add('wide');
+    };
     img.onerror = () => { into.replaceChildren(placeholder(card.title)); };
     into.append(img);
   } else {
@@ -395,18 +431,55 @@ function artFor(card, into) {
   }
 }
 
+function coverOf(c) {
+  return (c && c.metadata && c.metadata.cover && c.metadata.cover.imageL) || null;
+}
+
+/* ---------- library: your own playlists + purchased, club and shared cards ---------- */
 async function loadLibrary() {
-  setLibraryMessage('Loading playlists\u2026');
-  const data = await api('/content/mine');
-  state.raw = data;
-  state.cards = (data.cards || [])
-    .filter((c) => !c.deleted)
-    .map((c) => ({
-      id: c.cardId,
-      title: c.title || (c.metadata && c.metadata.title) || 'Untitled',
-      cover: (c.metadata && c.metadata.cover && c.metadata.cover.imageL) || null
-    }))
+  setLibraryMessage('Loading playlists…');
+  const [mineRes, famRes] = await Promise.allSettled([
+    api('/content/mine'),
+    api('/card/family/library?coverWidth=400')
+  ]);
+  for (const r of [mineRes, famRes]) {
+    if (r.status === 'rejected' && r.reason && r.reason.message === 'signin') throw r.reason;
+  }
+  if (mineRes.status === 'rejected' && famRes.status === 'rejected') throw mineRes.reason;
+
+  const mine = mineRes.status === 'fulfilled' ? mineRes.value : null;
+  const fam = famRes.status === 'fulfilled' ? famRes.value : null;
+
+  const byId = new Map();
+  const add = (id, title, cover) => {
+    if (!id) return;
+    const prev = byId.get(id);
+    if (prev) { if (!prev.cover && cover) prev.cover = cover; return; }
+    byId.set(id, { id, title: title || 'Untitled', cover: cover || null });
+  };
+  if (mine) {
+    for (const c of (mine.cards || [])) {
+      if (c.deleted) continue;
+      add(c.cardId, c.title || (c.metadata && c.metadata.title), coverOf(c));
+    }
+  }
+  if (fam) {
+    for (const item of (fam.cards || [])) {
+      const c = item.card || {};
+      add(item.cardId || c.cardId, c.title, coverOf(c));
+    }
+  }
+
+  state.cards = Array.from(byId.values())
     .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+  state.libInfo = {
+    myoPlaylists: mine && mine.cards ? mine.cards.length : null,
+    myoError: mineRes.status === 'rejected' ? mineRes.reason.message : null,
+    familyLibraryItems: fam && fam.cards ? fam.cards.length : null,
+    familyError: famRes.status === 'rejected' ? famRes.reason.message : null,
+    totalShown: state.cards.length,
+    firstFamilyItem: fam && fam.cards ? fam.cards[0] : null
+  };
   setLibraryMessage(state.cards.length ? '' : 'No playlists found.');
   renderLibrary();
   showLibrary();
@@ -446,35 +519,61 @@ function pickUrl(o) {
   return null;
 }
 
-async function fetchTracks(id) {
-  const data = await api('/content/' + encodeURIComponent(id) +
-    '?playable=true&signingType=s3&timezone=' + encodeURIComponent('Pacific/Auckland'));
-  const chapters = (data && data.card && data.card.content && data.card.content.chapters) || [];
+function chaptersOf(data) {
+  const c = data && (data.card || data);
+  return (c && c.content && c.content.chapters) || [];
+}
+function tracksFrom(data) {
   const out = [];
-  for (const ch of chapters) {
+  for (const ch of chaptersOf(data)) {
     for (const t of (ch.tracks || [])) {
       out.push({ title: t.title || ch.title || 'Track', url: pickUrl(t) || pickUrl(ch) });
     }
   }
-  state.debug = {
-    chapterCount: chapters.length,
-    firstChapterKeys: chapters[0] ? Object.keys(chapters[0]) : null,
-    firstTrack: chapters[0] && chapters[0].tracks ? chapters[0].tracks[0] : null,
-    tracksWithPlayableLink: out.filter((t) => t.url).length,
-    tracksTotal: out.length
-  };
-  if (out.length && !out.some((t) => t.url)) throw new Error('nourl');
   return out;
+}
+function sampleFrom(data) {
+  const ch = chaptersOf(data)[0];
+  return ch ? { chapterKeys: Object.keys(ch), firstTrack: (ch.tracks || [])[0] || null } : null;
+}
+
+// Tries your own-content route first, then the general card route (used by purchased/shared cards).
+async function fetchTracks(card) {
+  const id = encodeURIComponent(card.id);
+  const q = '?playable=true&signingType=s3&timezone=' + encodeURIComponent('Pacific/Auckland');
+  const paths = ['/content/' + id + q, '/card/' + id + q];
+  const attempts = [];
+  let best = null, lastErr = null, sample = null;
+  for (const path of paths) {
+    const label = path.split('?')[0].replace(id, '{id}');
+    try {
+      const data = await api(path);
+      const tracks = tracksFrom(data);
+      if (!sample) sample = sampleFrom(data);
+      attempts.push({ call: label, tracks: tracks.length, withAudioLink: tracks.filter((t) => t.url).length });
+      if (tracks.some((t) => t.url)) { best = tracks; break; }
+    } catch (e) {
+      if (e.message === 'signin') throw e;
+      lastErr = e;
+      attempts.push({ call: label, error: e.message });
+    }
+  }
+  state.debug = { playlist: card.title, attempts, sample };
+  if (best) return best;
+  if (attempts.some((a) => a.tracks > 0)) throw new Error('nourl');
+  if (attempts.some((a) => a.tracks === 0)) throw new Error('empty');
+  throw lastErr || new Error('nourl');
 }
 
 async function openPlaylist(card) {
   if (state.now && state.now.card.id === card.id) { showPlayer(); return; }
   unlockAudio();
   state.now = null;
+  state.lastScrolledIndex = -1;
   renderPlayer(card, null);
   showPlayer();
   try {
-    const tracks = await fetchTracks(card.id);
+    const tracks = await fetchTracks(card);
     if (!tracks.length) throw new Error('empty');
     state.now = { card, tracks, index: 0, done: false, failedIndex: null, retrying: false };
     renderPlayer(card, state.now);
@@ -484,6 +583,7 @@ async function openPlaylist(card) {
     $('pmsg').textContent = e.message === 'empty'
       ? 'This one is empty.'
       : 'Hmm, this one will not play. Please ask a grown-up.';
+    $('ptrack').textContent = '';
   }
 }
 
@@ -530,7 +630,7 @@ audio.addEventListener('error', async () => {
   if (n.failedIndex === n.index) { $('pmsg').textContent = 'Oops, that one will not play. Please ask a grown-up.'; return; }
   n.failedIndex = n.index; n.retrying = true;
   try {
-    n.tracks = await fetchTracks(n.card.id); // fresh links in case the old ones expired
+    n.tracks = await fetchTracks(n.card); // fresh links in case the old ones expired
     n.retrying = false;
     playIndex(n.index);
   } catch (e) {
@@ -560,11 +660,12 @@ function setMediaSession() {
 function renderPlayer(card, n) {
   artFor(card, $('pcover'));
   $('ptitle').textContent = card.title;
-  $('ptrack').textContent = n ? '' : 'Getting ready\u2026';
+  $('ptrack').textContent = n ? '' : 'Getting ready…';
   $('pmsg').textContent = '';
   $('pbar').style.width = '0%';
   const list = $('tracks');
   list.replaceChildren();
+  list.scrollTop = 0;
   if (n) {
     n.tracks.forEach((t, i) => {
       const b = el('button', {}, el('span', { class: 'num' }, String(i + 1)), el('span', { class: 'tt' }, t.title));
@@ -583,9 +684,17 @@ function updateUI() {
   if (!n) return;
   $('ptrack').textContent = n.tracks[n.index] ? n.tracks[n.index].title : '';
   $('miniName').textContent = n.card.title;
-  artFor(n.card, $('miniArt'));
+  if (!$('miniArt').firstChild || $('miniArt').dataset.card !== n.card.id) {
+    artFor(n.card, $('miniArt'));
+    $('miniArt').dataset.card = n.card.id;
+  }
   const items = $('tracks').querySelectorAll('button');
   items.forEach((b, i) => b.classList.toggle('now', i === n.index));
+  // Keep the playing track in view when it changes (but don't fight the child's scrolling).
+  if (state.lastScrolledIndex !== n.index && items[n.index]) {
+    state.lastScrolledIndex = n.index;
+    try { items[n.index].scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+  }
 }
 
 function showPlayer() { $('player').hidden = false; $('mini').hidden = true; }
@@ -596,13 +705,13 @@ function hidePlayer() {
 
 /* ---------- grown-ups corner ---------- */
 function truncating(key, value) {
-  return (typeof value === 'string' && value.length > 70) ? value.slice(0, 50) + '\u2026[cut]' : value;
+  return (typeof value === 'string' && value.length > 70) ? value.slice(0, 50) + '…[cut]' : value;
 }
 function openGrownups() {
   const info = {
+    version: VERSION,
     callbackUsed: CONFIG.redirectUri,
-    playlistsFound: state.cards.length,
-    firstItemFromYoto: state.raw && state.raw.cards ? state.raw.cards[0] : null,
+    library: state.libInfo,
     lastPlaylistOpened: state.debug
   };
   $('dbg').textContent = JSON.stringify(info, truncating, 2);
