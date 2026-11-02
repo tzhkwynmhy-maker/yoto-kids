@@ -104,7 +104,11 @@
   .tab:active { transform: translateY(2px); }
   .grouphead { display: flex; align-items: center; gap: 12px; margin: 4px 4px 12px; }
   .grouphead .sect { margin: 0; flex: 1; font-size: 1.4rem; color: var(--ink); }
-  .grouphead button { background: var(--pill); font-weight: 700; font-size: 1rem; padding: 10px 20px; border-radius: 999px; }
+  .grouphead button {
+    background: #4caf50; color: #fff; font-weight: 800; font-size: 1.15rem; padding: 12px 28px;
+    border-radius: 999px; box-shadow: 0 4px 0 #388e3c;
+  }
+  .grouphead button:active { transform: translateY(2px); box-shadow: 0 2px 0 #388e3c; }
   #grid {
     display: grid; gap: 20px 16px;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -139,6 +143,9 @@
     box-shadow: 0 8px 24px rgba(60, 40, 90, .25); z-index: 5;
   }
   #miniArt { width: 48px; height: 72px; border-radius: 10px; overflow: hidden; flex: none; background: var(--pill); }
+  #miniArt img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #miniArt img.wide { object-fit: contain; }
+  #miniArt .ph { font-size: 1.6rem; }
   #miniName { flex: 1; font-size: 1.15rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .round {
@@ -218,6 +225,31 @@
   @media (max-height: 640px) {
     .pcover { height: min(28vh, 220px); }
     .round.big { width: 76px; height: 76px; padding: 20px; }
+  }
+
+  /* ---------- Phones (narrow, upright): compact player so the track list has room ---------- */
+  @media (max-width: 600px) and (orientation: portrait) {
+    #player { padding-left: 14px; padding-right: 14px; gap: 4px; }
+    #backBtn { width: 48px; height: 48px; padding: 12px 14px 12px 10px; }
+    .pbody {
+      display: grid; grid-template-columns: 104px 1fr; column-gap: 14px; row-gap: 6px; align-items: center;
+      grid-template-areas: "cover title" "cover track" "bar bar" "controls controls" "msg msg";
+    }
+    .pcover { grid-area: cover; width: 104px; height: 156px; border-radius: 14px; }
+    #ptitle { grid-area: title; text-align: left; font-size: 1.15rem; align-self: end; margin: 0; }
+    #ptrack { grid-area: track; text-align: left; font-size: .95rem; align-self: start; min-height: 0; }
+    .bar { grid-area: bar; }
+    .controls { grid-area: controls; gap: 22px; padding: 2px 0; }
+    #pmsg { grid-area: msg; min-height: 0; }
+    .round { width: 56px; height: 56px; padding: 15px; }
+    .round.big { width: 76px; height: 76px; padding: 21px; }
+    #mini .round { width: 52px; height: 52px; padding: 14px; }
+    #tracks { margin-top: 2px; padding-bottom: 16px; }
+    #tracks li button { min-height: 58px; font-size: 1.05rem; padding: 8px 12px; margin-bottom: 8px; }
+    #tracks .num { width: 34px; height: 34px; font-size: .9rem; }
+    #tracks .ico { width: 46px; height: 46px; }
+    #tracks .ico img { width: 36px; height: 36px; }
+    .grouphead .sect { font-size: 1.2rem; }
   }
 
   /* ---------- Grown-ups corner ---------- */
@@ -317,7 +349,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v5: groups row, My Cards / Science Club tabs';
+const VERSION = 'v7: group pictures, green Show all, mini bar art, phone layout';
 
 const CONFIG = {
   clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
@@ -340,7 +372,7 @@ const ICONS = {
 
 const $ = (id) => document.getElementById(id);
 const state = {
-  cards: [], groups: [], group: null, tab: 'mine', loaded: false,
+  cards: [], groups: [], group: null, tab: 'mine', loaded: false, groupPics: {},
   libInfo: null, loadError: null, now: null, debug: null,
   lastScrolledIndex: -1, lastSave: 0, query: ''
 };
@@ -429,8 +461,20 @@ function groupsFrom(libGroups, listGroups) {
     const ids = [];
     for (const it of (g.items || [])) if (it && it.contentId) ids.push(it.contentId);
     for (const c of (g.cards || [])) { const id = c && (c.cardId || c.id); if (id) ids.push(id); }
-    return { id: g.id, name: g.name || 'Group', image: g.imageUrl || null, ids: Array.from(new Set(ids)) };
+    return { id: g.id, name: g.name || 'Group', image: g.imageUrl || null, imageId: g.imageId || null, ids: Array.from(new Set(ids)) };
   });
+}
+// Places to look for a group's picture, best first: the picture Yoto names, Yoto's ready-made group pictures,
+// and finally the cover of the first playlist inside the group.
+function groupPictureTries(g, cardsById) {
+  const out = [];
+  if (g.image) out.push({ url: g.image, from: 'picture Yoto gave' });
+  if (g.imageId && !/^https?:/.test(g.imageId)) out.push({ url: 'https://cdn.yoto.io/library/groups/' + g.imageId + '.png', from: 'Yoto ready-made picture' });
+  for (const id of (g.ids || [])) {
+    const c = cardsById.get(id);
+    if (c && c.cover) { out.push({ url: c.cover, from: 'cover of a playlist in the group' }); break; }
+  }
+  return out.filter((t, i) => out.findIndex((x) => x.url === t.url) === i);
 }
 // What to show right now: a group (from both tabs), or the open tab, narrowed by the search words.
 function visibleCards(cards, groups, groupId, tab, query) {
@@ -650,6 +694,11 @@ async function loadLibrary() {
     groupsError: grpRes.status === 'rejected' ? grpRes.reason.message : null,
     groupsFound: groups.length,
     groupSizes: groups.map((g) => g.name + ': ' + g.ids.length),
+    firstGroupFromYoto: (() => {
+      const g = (fam && Array.isArray(fam.groups) && fam.groups[0])
+        || (grpRes.status === 'fulfilled' && Array.isArray(grpRes.value) && grpRes.value[0]) || null;
+      return g ? Object.assign({}, g, { items: (g.items || []).length, cards: (g.cards || []).length }) : null;
+    })(),
     inMyCards: fresh.filter((c) => c.kind !== 'club').length,
     inScienceClub: fresh.filter((c) => c.kind === 'club').length,
     howFamilyItemsLookedToUs: {
@@ -697,13 +746,23 @@ function renderRecent() {
 function renderGroups() {
   const box = $('groups');
   box.replaceChildren();
+  const byId = new Map(state.cards.map((c) => [c.id, c]));
   for (const g of state.groups) {
     const pic = el('span', { class: 'gimg' });
-    if (g.image) {
-      const im = el('img', { src: g.image, alt: '', loading: 'lazy', draggable: 'false' });
-      im.onerror = () => { pic.replaceChildren(placeholder(g.name)); };
+    const tries = groupPictureTries(g, byId);
+    if (tries.length) {
+      const im = el('img', { alt: '', referrerpolicy: 'no-referrer', draggable: 'false' });
+      let n = 0;
+      const next = () => {
+        if (n < tries.length) { const t = tries[n++]; im.dataset.from = t.from; im.src = t.url; }
+        else { state.groupPics[g.name] = 'none of the pictures would load'; pic.replaceChildren(placeholder(g.name)); }
+      };
+      im.onload = () => { state.groupPics[g.name] = im.dataset.from; };
+      im.onerror = next;
       pic.append(im);
+      next();
     } else {
+      state.groupPics[g.name] = 'no picture offered';
       pic.append(placeholder(g.name));
     }
     const b = el('button', { class: 'grp' + (state.group === g.id ? ' on' : '') }, pic, el('span', { class: 'gname' }, g.name));
@@ -1033,6 +1092,7 @@ function openGrownups() {
     callbackUsed: CONFIG.redirectUri,
     library: state.libInfo,
     lastLoadError: state.loadError,
+    groupPictures: state.groupPics,
     playlistsOnScreen: state.cards.length,
     recentlyPlayed: getRecent().length,
     playlistsWithSavedPlace: Object.keys(getPositions()).length,
