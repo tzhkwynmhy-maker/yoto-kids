@@ -349,7 +349,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v7: group pictures, green Show all, mini bar art, phone layout';
+const VERSION = 'v7b: group pictures with sign-in';
 
 const CONFIG = {
   clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
@@ -743,6 +743,18 @@ function renderRecent() {
   $('allHead').hidden = recent.length === 0;
 }
 
+const signedPics = new Map();
+async function signedPicture(url) {
+  if (signedPics.has(url)) return signedPics.get(url);
+  let t = getTokens();
+  if (!t) throw new Error('signin');
+  if (Date.now() > t.exp - 60000) t = await refreshTokens();
+  const res = await fetch(url, { headers: { Authorization: 'Bearer ' + t.access_token } });
+  if (!res.ok) throw new Error('picture ' + res.status);
+  const blobUrl = URL.createObjectURL(await res.blob());
+  signedPics.set(url, blobUrl);
+  return blobUrl;
+}
 function renderGroups() {
   const box = $('groups');
   box.replaceChildren();
@@ -754,7 +766,13 @@ function renderGroups() {
       const im = el('img', { alt: '', referrerpolicy: 'no-referrer', draggable: 'false' });
       let n = 0;
       const next = () => {
-        if (n < tries.length) { const t = tries[n++]; im.dataset.from = t.from; im.src = t.url; }
+        if (n < tries.length) {
+          const t = tries[n++]; im.dataset.from = t.from;
+          if (t.url.startsWith(CONFIG.apiBase)) {
+            im.dataset.from = t.from + ' (signed in)';
+            signedPicture(t.url).then((u) => { im.src = u; }, next);
+          } else im.src = t.url;
+        }
         else { state.groupPics[g.name] = 'none of the pictures would load'; pic.replaceChildren(placeholder(g.name)); }
       };
       im.onload = () => { state.groupPics[g.name] = im.dataset.from; };
