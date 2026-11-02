@@ -349,7 +349,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v7c: club cards that appear twice go to Science Club';
+const VERSION = 'v7d: hand-added club cards go to Science Club';
 
 const CONFIG = {
   clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
@@ -447,7 +447,8 @@ function isClub(item) {
   const c = (item && item.card) || {};
   const bits = [item && item.reason, item && item.shareType, c.availability]
     .filter((x) => typeof x === 'string').join(' ').toLowerCase();
-  return /club|subscri|member/.test(bits);
+  // Club cards added by hand in the Yoto app are labelled 'user-add' (older ones 'club-subscription-add').
+  return /club|subscri|member/.test(bits) || (item && item.reason === 'user-add');
 }
 function tally(items, pick) {
   const out = {};
