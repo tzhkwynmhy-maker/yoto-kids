@@ -349,7 +349,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v7b: group pictures with sign-in';
+const VERSION = 'v7c: club cards that appear twice go to Science Club';
 
 const CONFIG = {
   clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
@@ -666,7 +666,7 @@ async function loadLibrary() {
   const add = (id, title, cover, kind) => {
     if (!id) return;
     const prev = byId.get(id);
-    if (prev) { if (!prev.cover && cover) prev.cover = cover; return; }
+    if (prev) { if (!prev.cover && cover) prev.cover = cover; if (kind === 'club') prev.kind = 'club'; return; }
     byId.set(id, { id, title: title || 'Untitled', cover: cover || null, kind: kind || 'mine' });
   };
   if (mine) {
@@ -699,6 +699,8 @@ async function loadLibrary() {
         || (grpRes.status === 'fulfilled' && Array.isArray(grpRes.value) && grpRes.value[0]) || null;
       return g ? Object.assign({}, g, { items: (g.items || []).length, cards: (g.cards || []).length }) : null;
     })(),
+    boughtOrSharedInMyCards: famItems.filter((it) => !isClub(it) && it.shareType !== 'myo')
+      .map((it) => [ (it.card && it.card.title) || '?', it.reason, it.shareType, it.card && it.card.availability ].join(' | ')),
     inMyCards: fresh.filter((c) => c.kind !== 'club').length,
     inScienceClub: fresh.filter((c) => c.kind === 'club').length,
     howFamilyItemsLookedToUs: {
