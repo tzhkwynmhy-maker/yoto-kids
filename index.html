@@ -44,6 +44,8 @@
   }
   #login h1 { font-size: 2.2rem; margin: 0; }
   #login p { max-width: 36rem; color: var(--soft); margin: 0; line-height: 1.5; }
+  #login .fine { font-size: .9rem; }
+  #login summary { cursor: pointer; }
   #login code {
     display: inline-block; background: #fff; padding: 4px 8px; border-radius: 8px;
     font-size: .85rem; word-break: break-all; -webkit-user-select: text; user-select: text; color: var(--ink);
@@ -274,12 +276,23 @@
 <body>
 
 <section id="login" hidden>
-  <h1>Grown-up sign-in</h1>
-  <p>Sign in with your Yoto account once. After that, this page just shows the playlists and plays them.</p>
+  <h1>Welcome! 🎵</h1>
+  <p>A simple, kid-friendly way to browse and play your family's Yoto library on a tablet, phone or computer.</p>
+  <ul class="fine" style="text-align:left;display:inline-block;margin:0 0 12px;padding-left:20px">
+    <li>Big picture tiles, so little ones can pick for themselves</li>
+    <li>Your groups, search, and a "recently played" row</li>
+    <li>Remembers where you left off in each story</li>
+  </ul>
+  <p>Tap the button and sign in with your usual Yoto account.</p>
   <button id="loginBtn" class="primary">Sign in with Yoto</button>
   <p id="loginErr" class="err" hidden></p>
-  <p>Set-up note: this page's address is <code id="redirectShow"></code><br>
-     It must be listed under "Allowed Callback URLs" in your Yoto developer app.</p>
+  <p class="fine">🔒 You sign in on Yoto's own website, so this page never sees your password. It can only view and play: it can't change, add or delete anything in your Yoto account. Your library stays on your own device.</p>
+  <p class="fine">Tip: on an iPad or phone, tap Share, then "Add to Home Screen", to get an app icon.</p>
+  <details class="fine">
+    <summary>For whoever set this page up</summary>
+    <p>This page's address is <code id="redirectShow"></code><br>
+       It must be listed under "Allowed Callback URLs" in the Yoto developer app.</p>
+  </details>
 </section>
 
 <section id="library" hidden>
@@ -349,7 +362,13 @@
 <script>
 'use strict';
 
-const VERSION = 'v7d: hand-added club cards go to Science Club';
+const VERSION = 'v8: group order setting, friendlier sign-in page';
+// How the group pictures across the top are ordered:
+//   'yoto'   = the same order as in the Yoto app
+//   'newest' = most recently created group first
+//   'oldest' = oldest group first
+//   'name'   = A to Z
+const GROUP_ORDER = 'yoto';
 
 const CONFIG = {
   clientId: 'tpc_j3TNLEaMwAEHcDZBGtU5BZ',
@@ -462,7 +481,7 @@ function groupsFrom(libGroups, listGroups) {
     const ids = [];
     for (const it of (g.items || [])) if (it && it.contentId) ids.push(it.contentId);
     for (const c of (g.cards || [])) { const id = c && (c.cardId || c.id); if (id) ids.push(id); }
-    return { id: g.id, name: g.name || 'Group', image: g.imageUrl || null, imageId: g.imageId || null, ids: Array.from(new Set(ids)) };
+    return { id: g.id, name: g.name || 'Group', created: Date.parse(g.createdAt) || 0, image: g.imageUrl || null, imageId: g.imageId || null, ids: Array.from(new Set(ids)) };
   });
 }
 // Places to look for a group's picture, best first: the picture Yoto names, Yoto's ready-made group pictures,
@@ -762,7 +781,11 @@ function renderGroups() {
   const box = $('groups');
   box.replaceChildren();
   const byId = new Map(state.cards.map((c) => [c.id, c]));
-  for (const g of state.groups) {
+  const order = state.groups.slice();
+  if (GROUP_ORDER === 'newest') order.sort((a, b) => (b.created || 0) - (a.created || 0));
+  else if (GROUP_ORDER === 'oldest') order.sort((a, b) => (a.created || 0) - (b.created || 0));
+  else if (GROUP_ORDER === 'name') order.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  for (const g of order) {
     const pic = el('span', { class: 'gimg' });
     const tries = groupPictureTries(g, byId);
     if (tries.length) {
