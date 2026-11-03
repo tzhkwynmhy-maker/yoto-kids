@@ -353,6 +353,7 @@
     <div class="bar"><i id="pbar"></i></div>
     <div class="controls">
       <button id="prevBtn" class="round" aria-label="Previous"></button>
+      <button id="rewBtn" class="round" aria-label="Back 10 seconds"></button>
       <button id="playBtn" class="round big" aria-label="Play or pause"></button>
       <button id="nextBtn" class="round" aria-label="Next"></button>
     </div>
@@ -379,7 +380,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v9: list view button, newest groups first';
+const VERSION = 'v10: rewind 10 seconds button';
 // How the group pictures across the top are ordered:
 //   'yoto'   = the same order as in the Yoto app
 //   'newest' = most recently created group first
@@ -403,6 +404,7 @@ const ICONS = {
   pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
   prev:  '<svg viewBox="0 0 24 24"><path d="M6 6h2.2v12H6zM19 6v12L9.5 12z"/></svg>',
   next:  '<svg viewBox="0 0 24 24"><path d="M15.8 6H18v12h-2.2zM5 6l9.5 6L5 18z"/></svg>',
+  rew10: '<svg viewBox="0 0 24 24"><path d="M12 5a8 8 0 1 1-7.6 5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 1.5v7L6.8 5z"/><text x="12" y="16.2" text-anchor="middle" font-size="7.5" font-weight="800" fill="currentColor" font-family="Inter,system-ui,sans-serif">10</text></svg>',
   back:  '<svg viewBox="0 0 24 24"><path d="M15.5 4.5 8 12l7.5 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 };
 
@@ -1031,6 +1033,10 @@ function togglePlay() {
   if (audio.paused) audio.play().catch(() => {}); else audio.pause();
 }
 function goNext() { const n = state.now; if (n && n.index + 1 < n.tracks.length) playIndex(n.index + 1); }
+function rewind10() {
+  if (!state.now || !audio.src) return;
+  audio.currentTime = Math.max(0, (audio.currentTime || 0) - 10);
+}
 function goPrev() {
   const n = state.now; if (!n) return;
   if (audio.currentTime > 3 || n.index === 0) { audio.currentTime = 0; audio.play().catch(() => {}); }
@@ -1090,6 +1096,7 @@ function setMediaSession() {
     navigator.mediaSession.setActionHandler('play', () => audio.play());
     navigator.mediaSession.setActionHandler('pause', () => audio.pause());
     navigator.mediaSession.setActionHandler('previoustrack', goPrev);
+    navigator.mediaSession.setActionHandler('seekbackward', rewind10);
     navigator.mediaSession.setActionHandler('nexttrack', goNext);
   } catch (e) {}
 }
@@ -1183,6 +1190,7 @@ function wire() {
   $('backBtn').innerHTML = ICONS.back;
   $('prevBtn').innerHTML = ICONS.prev;
   $('nextBtn').innerHTML = ICONS.next;
+  $('rewBtn').innerHTML = ICONS.rew10;
   $('playBtn').innerHTML = ICONS.play;
   $('miniPlay').innerHTML = ICONS.play;
   $('loginBtn').addEventListener('click', startLogin);
@@ -1190,6 +1198,7 @@ function wire() {
   $('playBtn').addEventListener('click', togglePlay);
   $('prevBtn').addEventListener('click', goPrev);
   $('nextBtn').addEventListener('click', goNext);
+  $('rewBtn').addEventListener('click', rewind10);
   $('miniPlay').addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
   $('mini').addEventListener('click', showPlayer);
   $('gClose').addEventListener('click', () => { $('grownups').hidden = true; });
