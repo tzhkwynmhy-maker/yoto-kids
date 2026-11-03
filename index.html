@@ -157,11 +157,11 @@
   .tile { position: relative; }
   .fav {
     position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 50%;
-    background: rgba(255,255,255,.92); color: #c9bfd6; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 6px rgba(60,40,90,.25); cursor: pointer;
+    background: rgba(255,255,255,.18); color: rgba(255,255,255,.95); display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
   }
-  .fav svg { width: 22px; height: 22px; fill: currentColor; }
-  .fav.on { color: #e8445a; }
+  .fav svg { width: 22px; height: 22px; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+  .fav.on { color: #ff4d67; background: rgba(255,255,255,.3); }
   .fav:active { transform: scale(.88); }
   .badge-new {
     position: absolute; top: 12px; left: 12px; background: #4caf50; color: #fff; font-weight: 800;
@@ -170,7 +170,9 @@
   }
   .strip .fav { width: 34px; height: 34px; top: 10px; right: 10px; }
   .strip .fav svg { width: 19px; height: 19px; }
-  #grid.list .fav { top: 50%; right: 14px; transform: translateY(-50%); width: 44px; height: 44px; box-shadow: none; background: transparent; }
+  #grid.list .fav { top: 50%; right: 14px; transform: translateY(-50%); width: 44px; height: 44px; background: transparent; color: #c9bfd6; }
+  #grid.list .fav.on { color: #e8445a; background: transparent; }
+  #grid.list .fav svg { filter: none; }
   #grid.list .fav:active { transform: translateY(-50%) scale(.88); }
   #grid.list .tile { padding-right: 66px; }
   #grid.list .badge-new { top: 6px; left: 6px; font-size: .62rem; padding: 3px 7px; }
@@ -425,7 +427,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v11: favourites, keep screen awake, sorting, new badge';
+const VERSION = 'v14: softer heart buttons';
 // How the group pictures across the top are ordered:
 //   'yoto'   = the same order as in the Yoto app
 //   'newest' = most recently created group first
@@ -485,7 +487,9 @@ function writeJson(key, val) { store(key, JSON.stringify(val)); }
 const RECENT_MAX = 60;      // how many we remember (for sorting)
 const RECENT_STRIP = 8;     // how many show in the 'Recently played' row
 function getRecent() { const r = readJson('yk_recent', []); return Array.isArray(r) ? r : []; }
+function getPlayedAt() { const p = readJson('yk_playedat', {}); return p && typeof p === 'object' && !Array.isArray(p) ? p : {}; }
 function markRecent(id) {
+  const pa = getPlayedAt(); pa[id] = Date.now(); writeJson('yk_playedat', pa);
   const r = getRecent().filter((x) => x !== id);
   r.unshift(id);
   writeJson('yk_recent', r.slice(0, RECENT_MAX));
@@ -527,12 +531,15 @@ function sortCards(list, mode, ctx) {
   const out = list.slice();
   if (mode === 'new') {
     const seen = (ctx && ctx.seen) || {};
-    const key = (c) => (seen[c.id] > 0 ? seen[c.id] : (c.added || 0));
+    const key = (c) => Math.max(seen[c.id] || 0, c.added || 0);
     out.sort((a, b) => (key(b) - key(a)) || az(a, b));
   } else if (mode === 'recent') {
+    // Last played first, counting only what was played in this app (not the real Yoto player).
     const r = (ctx && ctx.recent) || [];
+    const at = (ctx && ctx.playedAt) || {};
+    const key = (c) => at[c.id] || 0;
     const pos = (c) => { const i = r.indexOf(c.id); return i < 0 ? Infinity : i; };
-    out.sort((a, b) => { const pa = pos(a), pb = pos(b); return pa === pb ? az(a, b) : (pa < pb ? -1 : 1); });
+    out.sort((a, b) => (key(b) - key(a)) || (pos(a) === pos(b) ? az(a, b) : (pos(a) < pos(b) ? -1 : 1)));
   } else out.sort(az);
   return out;
 }
@@ -797,16 +804,17 @@ async function loadLibrary() {
 
   const byId = new Map();
   const when = (...vals) => { for (const v of vals) { const t = typeof v === 'string' ? Date.parse(v) : NaN; if (t > 0) return t; } return 0; };
-  const add = (id, title, cover, kind, added) => {
+  const add = (id, title, cover, kind, added, played) => {
     if (!id) return;
     const prev = byId.get(id);
     if (prev) {
       if (!prev.cover && cover) prev.cover = cover;
       if (kind === 'club') prev.kind = 'club';
       if (!prev.added && added) prev.added = added;
+      if (played > (prev.played || 0)) prev.played = played;
       return;
     }
-    byId.set(id, { id, title: title || 'Untitled', cover: cover || null, kind: kind || 'mine', added: added || 0 });
+    byId.set(id, { id, title: title || 'Untitled', cover: cover || null, kind: kind || 'mine', added: added || 0, played: played || 0 });
   };
   if (mine) {
     for (const c of (mine.cards || [])) {
@@ -817,7 +825,7 @@ async function loadLibrary() {
   if (fam) {
     for (const item of (fam.cards || [])) {
       const c = item.card || {};
-      add(item.cardId || c.cardId, c.title, coverOf(c), isClub(item) ? 'club' : 'mine', when(item.addedAt, item.createdAt, item.dateAdded, c.createdAt));
+      add(item.cardId || c.cardId, c.title, coverOf(c), isClub(item) ? 'club' : 'mine', when(item.addedAt, item.createdAt, item.dateAdded, c.createdAt), Math.max(when(item.lastPlayedAt), when(item.lastPlaybackAt)));
     }
   }
 
@@ -839,6 +847,12 @@ async function loadLibrary() {
       return g ? Object.assign({}, g, { items: (g.items || []).length, cards: (g.cards || []).length }) : null;
     })(),
     whatYotoSendsAboutEachCard: famItems[0] ? { itemKeys: Object.keys(famItems[0]), cardKeys: Object.keys(famItems[0].card || {}) } : null,
+    exampleDates: (() => {
+      const it = famItems.find((x) => x && x.lastPlayedAt) || famItems[0];
+      return it ? { addedAt: it.addedAt, createdAt: it.createdAt, lastPlayedAt: it.lastPlayedAt, lastPlaybackAt: it.lastPlaybackAt } : null;
+    })(),
+    cardsWithAddedDate: fresh.filter((c) => c.added).length,
+    cardsWithPlayedDate: fresh.filter((c) => c.played).length,
     myoCardKeys: mine && mine.cards && mine.cards[0] ? Object.keys(mine.cards[0]) : null,
     boughtOrSharedInMyCards: famItems.filter((it) => !isClub(it) && it.shareType !== 'myo')
       .map((it) => [ (it.card && it.card.title) || '?', it.reason, it.shareType, it.card && it.card.availability ].join(' | ')),
@@ -1012,7 +1026,7 @@ function renderGrid() {
   applyView();
   grid.replaceChildren();
   const shown = sortCards(visibleCards(state.cards, state.groups, state.group, state.tab, state.query),
-    state.sort, { recent: getRecent(), seen: state.seen });
+    state.sort, { recent: getRecent(), seen: state.seen, playedAt: getPlayedAt() });
   for (const c of shown) grid.append(tileFor(c));
   renderFavs();
   renderRecent();
