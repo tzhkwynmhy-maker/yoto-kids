@@ -153,6 +153,36 @@
   #grid.list .ph { font-size: 1.5rem; }
   #grid.list .name { font-size: 1.1rem; min-height: 0; -webkit-line-clamp: 3; flex: 1; }
 
+  /* Favourites, NEW badge, sort row */
+  .tile { position: relative; }
+  .fav {
+    position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,.92); color: #c9bfd6; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(60,40,90,.25); cursor: pointer;
+  }
+  .fav svg { width: 22px; height: 22px; fill: currentColor; }
+  .fav.on { color: #e8445a; }
+  .fav:active { transform: scale(.88); }
+  .badge-new {
+    position: absolute; top: 12px; left: 12px; background: #4caf50; color: #fff; font-weight: 800;
+    font-size: .72rem; letter-spacing: .5px; padding: 4px 9px; border-radius: 999px;
+    box-shadow: 0 2px 5px rgba(60,40,90,.3); pointer-events: none;
+  }
+  .strip .fav { width: 34px; height: 34px; top: 10px; right: 10px; }
+  .strip .fav svg { width: 19px; height: 19px; }
+  #grid.list .fav { top: 50%; right: 14px; transform: translateY(-50%); width: 44px; height: 44px; box-shadow: none; background: transparent; }
+  #grid.list .fav:active { transform: translateY(-50%) scale(.88); }
+  #grid.list .tile { padding-right: 66px; }
+  #grid.list .badge-new { top: 6px; left: 6px; font-size: .62rem; padding: 3px 7px; }
+  .sortrow { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 4px 12px; font-weight: 700; color: var(--soft); }
+  #sortSel {
+    font: inherit; font-weight: 700; color: var(--ink); background: #fff; border: 2px solid #f3d3a8;
+    border-radius: 999px; padding: 8px 14px; -webkit-appearance: none; appearance: none; outline: none;
+  }
+  #pFav { position: absolute; top: max(env(safe-area-inset-top), 12px); right: 18px; width: 56px; height: 56px; padding: 15px; color: #c9bfd6; }
+  #pFav.on { color: #e8445a; background: #fff; }
+  #pFav svg { fill: currentColor; }
+
   /* ---------- Mini bar ---------- */
   #mini {
     position: fixed; left: 12px; right: 12px; bottom: max(env(safe-area-inset-bottom), 12px);
@@ -233,6 +263,7 @@
       column-gap: 28px; row-gap: 0; align-items: start; justify-items: stretch;
     }
     #backBtn { grid-column: 1; grid-row: 1; }
+    #pFav { width: 56px; height: 56px; }
     .pbody { grid-column: 1; grid-row: 2; align-self: start; margin: 0 auto; }
     .pcover { height: min(40vh, 330px); }
     #tracks {
@@ -329,7 +360,19 @@
     <h2 id="groupName" class="sect"></h2>
     <button id="groupAll">Show all</button>
   </div>
+  <div id="sortRow" class="sortrow">
+    <label for="sortSel">Sort</label>
+    <select id="sortSel" aria-label="Sort playlists">
+      <option value="az">A to Z</option>
+      <option value="new">Newest added</option>
+      <option value="recent">Recently played</option>
+    </select>
+  </div>
   <div id="msg" hidden></div>
+  <section id="favWrap" hidden>
+    <h2 class="sect">Favourites ♥</h2>
+    <div id="favs" class="strip"></div>
+  </section>
   <section id="recentWrap" hidden>
     <h2 class="sect">Recently played</h2>
     <div id="recent" class="strip"></div>
@@ -346,6 +389,7 @@
 
 <div id="player" hidden>
   <button id="backBtn" class="round" aria-label="Back"></button>
+  <button id="pFav" class="round" aria-label="Favourite"></button>
   <div class="pbody">
     <div id="pcover" class="pcover"></div>
     <h2 id="ptitle"></h2>
@@ -366,6 +410,7 @@
   <div class="box">
     <h2>Grown-ups corner</h2>
     <div class="row">
+      <button class="btn" id="gAwake">Screen stays on while playing: ON</button>
       <button class="btn" id="gReload">Reload playlists</button>
       <button class="btn danger" id="gSignOut">Sign out</button>
       <button class="btn" id="gClose">Close</button>
@@ -380,7 +425,7 @@
 <script>
 'use strict';
 
-const VERSION = 'v10: rewind 10 seconds button';
+const VERSION = 'v11: favourites, keep screen awake, sorting, new badge';
 // How the group pictures across the top are ordered:
 //   'yoto'   = the same order as in the Yoto app
 //   'newest' = most recently created group first
@@ -400,6 +445,7 @@ const CONFIG = {
 };
 
 const ICONS = {
+  heart: '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
   play:  '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
   pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
   prev:  '<svg viewBox="0 0 24 24"><path d="M6 6h2.2v12H6zM19 6v12L9.5 12z"/></svg>',
@@ -412,7 +458,8 @@ const $ = (id) => document.getElementById(id);
 const state = {
   cards: [], groups: [], group: null, tab: 'mine', loaded: false, groupPics: {},
   libInfo: null, loadError: null, now: null, debug: null,
-  lastScrolledIndex: -1, lastSave: 0, query: ''
+  lastScrolledIndex: -1, lastSave: 0, query: '',
+  sort: 'az', view: 'tiles', seen: {}, fresh: new Set(), prevOpen: null, awake: true
 };
 
 function el(tag, attrs = {}, ...kids) {
@@ -435,12 +482,59 @@ function readJson(key, fallback) {
 function writeJson(key, val) { store(key, JSON.stringify(val)); }
 
 // Recently played (most recent first)
-const RECENT_MAX = 8;
+const RECENT_MAX = 60;      // how many we remember (for sorting)
+const RECENT_STRIP = 8;     // how many show in the 'Recently played' row
 function getRecent() { const r = readJson('yk_recent', []); return Array.isArray(r) ? r : []; }
 function markRecent(id) {
   const r = getRecent().filter((x) => x !== id);
   r.unshift(id);
   writeJson('yk_recent', r.slice(0, RECENT_MAX));
+}
+
+// Favourites (list of card ids)
+function getFavs() { const f = readJson('yk_favs', []); return Array.isArray(f) ? f : []; }
+function toggleFav(id) {
+  const f = getFavs(); const i = f.indexOf(id);
+  if (i >= 0) f.splice(i, 1); else f.unshift(id);
+  writeJson('yk_favs', f);
+  return i < 0;
+}
+
+// "New" badges. We note the first time this device sees each playlist ('yk_seen': id -> time).
+// The very first run just records everything already there as old (time 0), so only later additions count.
+const MONTH = 30 * 24 * 3600 * 1000;
+function updateSeen(ids, seen, now) {
+  if (!seen || typeof seen !== 'object' || Array.isArray(seen)) {
+    const base = {}; for (const id of ids) base[id] = 0;
+    return { seen: base, firstRun: true };
+  }
+  const out = Object.assign({}, seen);
+  for (const id of ids) if (!(id in out)) out[id] = now;
+  return { seen: out, firstRun: false };
+}
+// A playlist is new if added in the last month, or since the app was last opened, whichever reaches further back.
+function newCutoff(prevOpen, now) {
+  return typeof prevOpen === 'number' && prevOpen > 0 ? Math.min(now - MONTH, prevOpen) : now - MONTH;
+}
+function newIds(seen, cutoff) {
+  const s = new Set();
+  for (const id of Object.keys(seen || {})) if (seen[id] > 0 && seen[id] > cutoff) s.add(id);
+  return s;
+}
+// Sorting the list: 'az', 'new' (newest added first) or 'recent' (last played first).
+function sortCards(list, mode, ctx) {
+  const az = (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+  const out = list.slice();
+  if (mode === 'new') {
+    const seen = (ctx && ctx.seen) || {};
+    const key = (c) => (seen[c.id] > 0 ? seen[c.id] : (c.added || 0));
+    out.sort((a, b) => (key(b) - key(a)) || az(a, b));
+  } else if (mode === 'recent') {
+    const r = (ctx && ctx.recent) || [];
+    const pos = (c) => { const i = r.indexOf(c.id); return i < 0 ? Infinity : i; };
+    out.sort((a, b) => { const pa = pos(a), pb = pos(b); return pa === pb ? az(a, b) : (pa < pb ? -1 : 1); });
+  } else out.sort(az);
+  return out;
 }
 
 // Where she was up to in each playlist: { cardId: { i: trackIndex, t: seconds, at: when } }
@@ -702,22 +796,28 @@ async function loadLibrary() {
   const fam = famRes.status === 'fulfilled' ? famRes.value : null;
 
   const byId = new Map();
-  const add = (id, title, cover, kind) => {
+  const when = (...vals) => { for (const v of vals) { const t = typeof v === 'string' ? Date.parse(v) : NaN; if (t > 0) return t; } return 0; };
+  const add = (id, title, cover, kind, added) => {
     if (!id) return;
     const prev = byId.get(id);
-    if (prev) { if (!prev.cover && cover) prev.cover = cover; if (kind === 'club') prev.kind = 'club'; return; }
-    byId.set(id, { id, title: title || 'Untitled', cover: cover || null, kind: kind || 'mine' });
+    if (prev) {
+      if (!prev.cover && cover) prev.cover = cover;
+      if (kind === 'club') prev.kind = 'club';
+      if (!prev.added && added) prev.added = added;
+      return;
+    }
+    byId.set(id, { id, title: title || 'Untitled', cover: cover || null, kind: kind || 'mine', added: added || 0 });
   };
   if (mine) {
     for (const c of (mine.cards || [])) {
       if (c.deleted) continue;
-      add(c.cardId, c.title || (c.metadata && c.metadata.title), coverOf(c), 'mine');
+      add(c.cardId, c.title || (c.metadata && c.metadata.title), coverOf(c), 'mine', when(c.createdAt, c.updatedAt));
     }
   }
   if (fam) {
     for (const item of (fam.cards || [])) {
       const c = item.card || {};
-      add(item.cardId || c.cardId, c.title, coverOf(c), isClub(item) ? 'club' : 'mine');
+      add(item.cardId || c.cardId, c.title, coverOf(c), isClub(item) ? 'club' : 'mine', when(item.addedAt, item.createdAt, item.dateAdded, c.createdAt));
     }
   }
 
@@ -738,6 +838,8 @@ async function loadLibrary() {
         || (grpRes.status === 'fulfilled' && Array.isArray(grpRes.value) && grpRes.value[0]) || null;
       return g ? Object.assign({}, g, { items: (g.items || []).length, cards: (g.cards || []).length }) : null;
     })(),
+    whatYotoSendsAboutEachCard: famItems[0] ? { itemKeys: Object.keys(famItems[0]), cardKeys: Object.keys(famItems[0].card || {}) } : null,
+    myoCardKeys: mine && mine.cards && mine.cards[0] ? Object.keys(mine.cards[0]) : null,
     boughtOrSharedInMyCards: famItems.filter((it) => !isClub(it) && it.shareType !== 'myo')
       .map((it) => [ (it.card && it.card.title) || '?', it.reason, it.shareType, it.card && it.card.availability ].join(' | ')),
     inMyCards: fresh.filter((c) => c.kind !== 'club').length,
@@ -751,9 +853,20 @@ async function loadLibrary() {
   state.loadError = null;
   state.loaded = true;
 
+  // Note which playlists are new. Only when both lists loaded, so a half-loaded library can't mislead us.
+  const prevFresh = JSON.stringify(Array.from(state.fresh));
+  if (mine && fam) {
+    const r = updateSeen(fresh.map((c) => c.id), readJson('yk_seen', null), Date.now());
+    state.seen = r.seen;
+    writeJson('yk_seen', r.seen);
+    state.libInfo.newBadges = r.firstRun ? 'first run: everything already here counts as old' : undefined;
+  }
+  state.fresh = newIds(state.seen, newCutoff(state.prevOpen, Date.now()));
+
   // Only redraw if something actually changed, so the screen doesn't flicker after a quiet refresh.
   const changed = JSON.stringify(fresh) !== JSON.stringify(state.cards)
-    || JSON.stringify(groups) !== JSON.stringify(state.groups);
+    || JSON.stringify(groups) !== JSON.stringify(state.groups)
+    || JSON.stringify(Array.from(state.fresh)) !== prevFresh;
   state.cards = fresh;
   state.groups = groups;
   saveLibraryCache(fresh);
@@ -767,16 +880,37 @@ function tileFor(c) {
   const art = el('div', { class: 'art' });
   artFor(c, art);
   const b = el('button', { class: 'tile' }, art, el('span', { class: 'name' }, c.title));
+  if (state.fresh.has(c.id)) b.append(el('span', { class: 'badge-new' }, 'NEW'));
+  const h = el('span', { class: 'fav' + (getFavs().includes(c.id) ? ' on' : ''), role: 'button', 'aria-label': 'Favourite', 'data-id': c.id });
+  h.innerHTML = ICONS.heart;
+  h.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); setFav(c.id); });
+  b.append(h);
   b.addEventListener('click', () => openPlaylist(c));
   return b;
 }
 
+function setFav(id) {
+  const on = toggleFav(id);
+  for (const h of document.querySelectorAll('.fav[data-id="' + id + '"]')) h.classList.toggle('on', on);
+  $('pFav').classList.toggle('on', !!state.now && state.now.card.id === id && on);
+  renderFavs();
+}
+function renderFavs() {
+  const q = state.query.trim();
+  const byId = new Map(state.cards.map((c) => [c.id, c]));
+  const favs = (q || state.group) ? [] : getFavs().map((id) => byId.get(id)).filter(Boolean);
+  const strip = $('favs');
+  strip.replaceChildren();
+  for (const c of favs) strip.append(tileFor(c));
+  $('favWrap').hidden = favs.length === 0;
+}
 function renderRecent() {
   const q = state.query.trim();
   const byId = new Map(state.cards.map((c) => [c.id, c]));
   const recent = (q || state.group) ? [] : getRecent()
     .map((id) => byId.get(id))
-    .filter((c) => c && (c.kind || 'mine') === state.tab);
+    .filter((c) => c && (c.kind || 'mine') === state.tab)
+    .slice(0, RECENT_STRIP);
   const strip = $('recent');
   strip.replaceChildren();
   for (const c of recent) strip.append(tileFor(c));
@@ -877,7 +1011,10 @@ function renderGrid() {
   const grid = $('grid');
   applyView();
   grid.replaceChildren();
-  for (const c of visibleCards(state.cards, state.groups, state.group, state.tab, state.query)) grid.append(tileFor(c));
+  const shown = sortCards(visibleCards(state.cards, state.groups, state.group, state.tab, state.query),
+    state.sort, { recent: getRecent(), seen: state.seen });
+  for (const c of shown) grid.append(tileFor(c));
+  renderFavs();
   renderRecent();
   updateMessage();
 }
@@ -1129,11 +1266,27 @@ function renderPlayer(card, n) {
   updateUI();
 }
 
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (!('wakeLock' in navigator)) return;
+    if (on && state.awake && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if ((!on || !state.awake) && wakeLock) {
+      const w = wakeLock; wakeLock = null; await w.release();
+    }
+  } catch (e) { wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') keepAwake(!audio.paused && !!state.now && !state.now.done);
+});
 function updateUI() {
   const n = state.now;
   const playing = !!n && !audio.paused && !n.done;
   $('playBtn').innerHTML = playing ? ICONS.pause : ICONS.play;
   $('miniPlay').innerHTML = playing ? ICONS.pause : ICONS.play;
+  keepAwake(playing);
   if (!n) return;
   $('ptrack').textContent = n.tracks[n.index] ? n.tracks[n.index].title : '';
   $('miniName').textContent = n.card.title;
@@ -1150,7 +1303,12 @@ function updateUI() {
   }
 }
 
-function showPlayer() { $('player').hidden = false; $('mini').hidden = true; }
+function syncPlayerFav() {
+  const n = state.now;
+  $('pFav').classList.toggle('on', !!n && getFavs().includes(n.card.id));
+}
+function showPlayer() {
+  syncPlayerFav(); $('player').hidden = false; $('mini').hidden = true; }
 function hidePlayer() {
   $('player').hidden = true;
   $('mini').hidden = !state.now;
@@ -1172,6 +1330,7 @@ function openGrownups() {
     playlistsWithSavedPlace: Object.keys(getPositions()).length,
     lastPlaylistOpened: state.debug
   };
+  $('gAwake').textContent = 'Screen stays on while playing: ' + (state.awake ? 'ON' : 'OFF');
   $('dbg').textContent = JSON.stringify(info, truncating, 2);
   $('grownups').hidden = false;
 }
@@ -1188,6 +1347,8 @@ function setupLongPress() {
 /* ---------- wire up ---------- */
 function wire() {
   $('backBtn').innerHTML = ICONS.back;
+  $('pFav').innerHTML = ICONS.heart;
+  $('pFav').addEventListener('click', () => { if (state.now) setFav(state.now.card.id); });
   $('prevBtn').innerHTML = ICONS.prev;
   $('nextBtn').innerHTML = ICONS.next;
   $('rewBtn').innerHTML = ICONS.rew10;
@@ -1201,6 +1362,12 @@ function wire() {
   $('rewBtn').addEventListener('click', rewind10);
   $('miniPlay').addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
   $('mini').addEventListener('click', showPlayer);
+  $('gAwake').addEventListener('click', () => {
+    state.awake = !state.awake;
+    store('yk_awake', state.awake ? 'on' : 'off');
+    $('gAwake').textContent = 'Screen stays on while playing: ' + (state.awake ? 'ON' : 'OFF');
+    keepAwake(!audio.paused && !!state.now && !state.now.done);
+  });
   $('gClose').addEventListener('click', () => { $('grownups').hidden = true; });
   $('gReload').addEventListener('click', async () => {
     $('grownups').hidden = true;
@@ -1228,6 +1395,12 @@ function wire() {
       renderChrome(); renderGrid();
     });
   }
+  $('sortSel').value = state.sort;
+  $('sortSel').addEventListener('change', (e) => {
+    state.sort = ['az', 'new', 'recent'].includes(e.target.value) ? e.target.value : 'az';
+    store('yk_sort', state.sort);
+    renderGrid();
+  });
   $('viewBtn').addEventListener('click', () => {
     state.view = state.view === 'list' ? 'tiles' : 'list';
     store('yk_view', state.view);
@@ -1262,6 +1435,13 @@ function handleLoadError(e) {
   // Show the saved list straight away, then quietly refresh it.
   state.tab = fetchStored('yk_tab') === 'club' ? 'club' : 'mine';
   state.view = fetchStored('yk_view') === 'list' ? 'list' : 'tiles';
+  state.sort = ['az', 'new', 'recent'].includes(fetchStored('yk_sort')) ? fetchStored('yk_sort') : 'az';
+  $('sortSel').value = state.sort;
+  state.awake = fetchStored('yk_awake') !== 'off';
+  state.seen = readJson('yk_seen', {}) || {};
+  state.prevOpen = Number(fetchStored('yk_lastopen')) || null;
+  store('yk_lastopen', String(Date.now()));
+  state.fresh = newIds(state.seen, newCutoff(state.prevOpen, Date.now()));
   const cached = loadLibraryCache();
   if (cached.length) { state.cards = cached; state.groups = loadGroupsCache(); renderLibrary(); showLibrary(); }
   try { await loadLibrary(); } catch (e) { handleLoadError(e); }
